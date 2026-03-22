@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:help.aliyun.com)",
+      "Bash(curl -sL --max-time 15 https://help.aliyun.com/zh/isi/developer-reference/overview-8)",
+      "Bash(curl -s -L https://help.aliyun.com/zh/isi/developer-reference/overview-3)",
+      "Bash(curl -sL --max-time 15 https://help.aliyun.com/zh/isi/developer-reference/api-reference-1)",
+      "Bash(curl -s -L --max-time 30 'https://help.aliyun.com/zh/isi/developer-reference/cosyvoice-quick-start')",
+      "Bash(curl -s -L -H \"User-Agent: Mozilla/5.0 \\(X11; Linux x86_64\\) AppleWebKit/537.36\" https://help.aliyun.com/zh/isi/developer-reference/overview-8)",
+      "Bash(curl -s -L --max-time 30 'https://help.aliyun.com/zh/isi/developer-reference/streaming-speech-synthesis')",
+      "Bash(curl -s -L -H \"User-Agent: Mozilla/5.0 \\(X11; Linux x86_64\\) AppleWebKit/537.36\" https://help.aliyun.com/zh/isi/developer-reference/api-reference-1)",
+      "Bash(curl -s -L --max-time 30 'https://help.aliyun.com/zh/model-studio/developer-reference/cosyvoice-tts')",
+      "Bash(curl -s -L -H \"User-Agent: Mozilla/5.0 \\(X11; Linux x86_64\\) AppleWebKit/537.36\" https://help.aliyun.com/zh/isi/developer-reference/sdk-for-python-1)"
+    ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
+  }
+}

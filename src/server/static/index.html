@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞机维修语音助手</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="brand-cluster" id="brandCluster">
+        <div class="brand-title">飞机维修助手</div>
+        <button class="panel-toggle" id="panelToggle" aria-label="展开功能面板">
+            <span></span><span></span><span></span>
+        </button>
+    </div>
+
+    <aside class="glass-panel" id="controlPanel">
+        <section>
+            <h3>系统控制</h3>
+            <p id="recordStatus">正在初始化麦克风…</p>
+            <div class="panel-actions">
+                <button type="button" onclick="interrupt()">打断回复</button>
+                <button type="button" onclick="clearHistory()">清除上下文</button>
+            </div>
+            <p id="permissionHint" class="hint" style="display:none;">未能获取麦克风权限，请在浏览器中允许访问。</p>
+        </section>
+        <section>
+            <h3>参考来源</h3>
+            <div id="sourcesList" class="sources-list">
+                <div class="sources-empty">暂无来源</div>
+            </div>
+        </section>
+    </aside>
+
+    <div class="wave-strip">
+        <canvas id="volumeCanvas" aria-label="实时音量波形"></canvas>
+    </div>
+
+    <div class="dialogue-canvas" id="dialogueCanvas"></div>
+
+    <div id="toastStack" class="toast-container"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
