@@ -18,10 +18,14 @@ class VoiceChatPipeline:
         self.tts = StreamingSynthesizer()
         self.history: list[dict] = []
         self._interrupted = False
+        self._text_buffer = ""
+        self._buffer_threshold = 15  # 至少15字符才发送到TTS
 
     def interrupt(self):
-        """打断当前回答"""
+        """打断当前回答：停止 LLM 循环、取消 TTS、清空缓冲"""
         self._interrupted = True
+        self._text_buffer = ""
+        self.tts.cancel()
 
     async def process_query(
         self,
@@ -58,8 +62,9 @@ class VoiceChatPipeline:
         if on_audio_data:
             self.tts.start(on_audio_data)
 
-        # 3. LLM 流式生成 + TTS 流式合成
+        # 3. LLM 流式生成 + TTS 流式合成（带文本缓冲）
         full_response = ""
+        self._text_buffer = ""
         try:
             async for chunk in self.llm.generate(query, context, self.history):
                 if self._interrupted:
@@ -68,21 +73,39 @@ class VoiceChatPipeline:
 
                 full_response += chunk
 
-                # 推送文本给前端
+                # 推送文本给前端（立即显示）
                 if on_llm_chunk:
                     on_llm_chunk(chunk)
 
-                # 流式喂入 TTS
+                # 缓冲文本，攒够再喂入 TTS（减少碎片化）
                 if on_audio_data:
-                    self.tts.feed_text(chunk)
+                    self._text_buffer += chunk
+                    # 遇到句子结束符或缓冲区达到阈值则发送
+                    should_flush = (
+                        any(p in chunk for p in ['。', '！', '？', '\n', '.', '!', '?', '；', ';'])
+                        or len(self._text_buffer) >= self._buffer_threshold
+                    )
+                    if should_flush:
+                        self.tts.feed_text(self._text_buffer)
+                        logger.debug("TTS fed %d chars: %s", len(self._text_buffer), self._text_buffer[:30])
+                        self._text_buffer = ""
 
         except Exception as e:
             logger.error("Pipeline error: %s", e)
             raise
         finally:
-            # 4. 完成 TTS 合成
-            if on_audio_data:
-                self.tts.finish()
+            if not self._interrupted:
+                # 4. 发送剩余缓冲的文本
+                if on_audio_data and self._text_buffer:
+                    self.tts.feed_text(self._text_buffer)
+                    logger.debug("TTS fed remaining %d chars", len(self._text_buffer))
+                    self._text_buffer = ""
+
+                # 5. 完成 TTS 合成
+                if on_audio_data:
+                    self.tts.finish()
+            else:
+                self._text_buffer = ""
 
         # 5. 更新对话历史
         if full_response and not self._interrupted:

@@ -17,9 +17,7 @@
     <aside class="glass-panel" id="controlPanel">
         <section>
             <h3>系统控制</h3>
-            <p id="recordStatus">正在初始化麦克风…</p>
             <div class="panel-actions">
-                <button type="button" onclick="interrupt()">打断回复</button>
                 <button type="button" onclick="clearHistory()">清除上下文</button>
             </div>
             <p id="permissionHint" class="hint" style="display:none;">未能获取麦克风权限，请在浏览器中允许访问。</p>
@@ -31,6 +29,13 @@
             </div>
         </section>
     </aside>
+
+    <div class="action-bar" id="actionBar">
+        <button class="action-btn interrupt-btn" id="interruptBtn" onclick="interrupt()">打断回复</button>
+        <button class="action-btn mode-btn" id="modeBtn" onclick="toggleRecordMode()">持续监听</button>
+        <button class="action-btn ptt-btn" id="pttBtn">按住说话</button>
+        <span class="action-status" id="recordStatus">正在初始化…</span>
+    </div>
 
     <div class="wave-strip">
         <canvas id="volumeCanvas" aria-label="实时音量波形"></canvas>

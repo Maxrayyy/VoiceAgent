@@ -19,6 +19,11 @@ class _TtsCallback(ResultCallback):
     def __init__(self, on_audio_data: Callable[[bytes], None], loop: asyncio.AbstractEventLoop):
         self._on_audio_data = on_audio_data
         self._loop = loop
+        self._cancelled = False
+
+    def cancel(self):
+        """取消回调转发，后续 on_data 将被忽略"""
+        self._cancelled = True
 
     def on_open(self):
         logger.debug("TTS WebSocket opened")
@@ -27,7 +32,8 @@ class _TtsCallback(ResultCallback):
         logger.debug("TTS synthesis completed")
 
     def on_error(self, message: str):
-        logger.error("TTS error: %s", message)
+        if not self._cancelled:
+            logger.error("TTS error: %s", message)
 
     def on_close(self):
         logger.debug("TTS WebSocket closed")
@@ -36,8 +42,8 @@ class _TtsCallback(ResultCallback):
         logger.debug("TTS event: %s", message)
 
     def on_data(self, data: bytes) -> None:
-        """收到音频数据，转发给外部回调"""
-        if data and self._on_audio_data:
+        """收到音频数据，转发给外部回调（已取消时忽略）"""
+        if data and self._on_audio_data and not self._cancelled:
             self._loop.call_soon_threadsafe(self._on_audio_data, data)
 
 
@@ -52,6 +58,7 @@ class StreamingSynthesizer:
         self._model = model or config.TTS_MODEL
         self._voice = voice or config.TTS_VOICE
         self._synthesizer: Optional[SpeechSynthesizer] = None
+        self._callback: Optional[_TtsCallback] = None
 
     def start(self, on_audio_data: Callable[[bytes], None]) -> None:
         """
@@ -61,13 +68,13 @@ class StreamingSynthesizer:
             on_audio_data: 音频数据回调，每收到一段合成音频就调用
         """
         loop = asyncio.get_event_loop()
-        callback = _TtsCallback(on_audio_data, loop)
+        self._callback = _TtsCallback(on_audio_data, loop)
 
         self._synthesizer = SpeechSynthesizer(
             model=self._model,
             voice=self._voice,
             format=AudioFormat.PCM_22050HZ_MONO_16BIT,
-            callback=callback,
+            callback=self._callback,
         )
         logger.debug("TTS synthesizer started: model=%s, voice=%s", self._model, self._voice)
 
@@ -80,6 +87,19 @@ class StreamingSynthesizer:
         """
         if self._synthesizer and text:
             self._synthesizer.streaming_call(text)
+
+    def cancel(self) -> None:
+        """取消当前合成，禁用回调并快速结束"""
+        if self._callback:
+            self._callback.cancel()
+        if self._synthesizer:
+            try:
+                self._synthesizer.streaming_complete()
+            except Exception as e:
+                logger.debug("TTS cancel streaming_complete error (expected): %s", e)
+            self._synthesizer = None
+        self._callback = None
+        logger.info("TTS synthesis cancelled")
 
     def finish(self) -> None:
         """通知文本输入完毕，等待合成结束"""

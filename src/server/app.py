@@ -34,6 +34,47 @@ async def index():
     return FileResponse(str(STATIC_DIR / "index.html"))
 
 
+class AudioBuffer:
+    """音频数据批量发送缓冲区，减少 WebSocket 消息数量"""
+
+    def __init__(self, ws: WebSocket, loop: asyncio.AbstractEventLoop, max_batch_size: int = 8192):
+        self._ws = ws
+        self._loop = loop
+        self._buffer = bytearray()
+        self._lock = asyncio.Lock()
+        self._max_size = max_batch_size
+        self._flush_task = None
+
+    def append_sync(self, data: bytes):
+        """同步添加数据（从线程调用）"""
+        asyncio.run_coroutine_threadsafe(self.append(data), self._loop)
+
+    async def append(self, data: bytes):
+        """异步添加数据"""
+        async with self._lock:
+            self._buffer.extend(data)
+            if len(self._buffer) >= self._max_size:
+                await self.flush()
+
+    async def flush(self):
+        """发送缓冲区中的所有数据"""
+        if not self._buffer:
+            return
+        try:
+            encoded = base64.b64encode(bytes(self._buffer)).decode('ascii')
+            await self._ws.send_text(json.dumps({
+                "type": "tts_audio",
+                "data": encoded
+            }, ensure_ascii=False))
+            self._buffer.clear()
+        except Exception as e:
+            logger.error("Failed to send audio buffer: %s", e)
+
+    def clear(self):
+        """清空缓冲区（打断时调用）"""
+        self._buffer.clear()
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
@@ -42,6 +83,7 @@ async def websocket_endpoint(ws: WebSocket):
     pipeline = VoiceChatPipeline(document_store=document_store)
     loop = asyncio.get_event_loop()
     processing = False
+    audio_buffer = AudioBuffer(ws, loop, max_batch_size=8192)
 
     async def send_json(msg: dict):
         try:
@@ -63,8 +105,8 @@ async def websocket_endpoint(ws: WebSocket):
                 send_json_sync({"type": "llm_chunk", "text": chunk})
 
             def on_audio(data):
-                encoded = base64.b64encode(data).decode("ascii")
-                send_json_sync({"type": "tts_audio", "data": encoded})
+                # 使用批量缓冲区减少 WebSocket 消息数量
+                audio_buffer.append_sync(data)
 
             def on_sources(sources):
                 send_json_sync({
@@ -82,6 +124,9 @@ async def websocket_endpoint(ws: WebSocket):
                 on_rag_sources=on_sources,
             )
 
+            # 确保所有缓冲的音频都已发送
+            await audio_buffer.flush()
+
             await send_json({"type": "llm_done"})
             await send_json({"type": "tts_done"})
         except Exception as e:
@@ -91,6 +136,7 @@ async def websocket_endpoint(ws: WebSocket):
             processing = False
 
     stt: StreamingRecognizer | None = None
+    stt_lock = asyncio.Lock()
 
     try:
         while True:
@@ -99,31 +145,47 @@ async def websocket_endpoint(ws: WebSocket):
             msg_type = msg.get("type")
 
             if msg_type == "start_recording":
-                def on_partial(text):
-                    send_json_sync({"type": "stt_partial", "text": text})
+                async with stt_lock:
+                    # 停止旧的 STT 实例（如果存在）
+                    if stt and stt.is_started:
+                        old_stt = stt
+                        logger.info("Stopping old STT instance")
 
-                def on_final(text):
-                    send_json_sync({"type": "stt_final", "text": text})
-                    asyncio.run_coroutine_threadsafe(process_query(text), loop)
+                        def stop_old_stt():
+                            try:
+                                old_stt.stop()
+                            except Exception as e:
+                                logger.warning("Failed to stop old STT: %s", e)
 
-                def on_stt_error(err):
-                    send_json_sync({"type": "error", "message": f"STT error: {err}"})
+                        threading.Thread(target=stop_old_stt, daemon=True).start()
 
-                stt = StreamingRecognizer(
-                    on_partial_result=on_partial,
-                    on_final_result=on_final,
-                    on_error=on_stt_error,
-                    loop=loop,
-                )
+                    # 创建新的 STT 实例
+                    def on_partial(text):
+                        send_json_sync({"type": "stt_partial", "text": text})
 
-                def start_stt():
-                    try:
-                        stt.start()
-                    except Exception as e:
-                        send_json_sync({"type": "error", "message": f"STT start failed: {e}"})
+                    def on_final(text):
+                        send_json_sync({"type": "stt_final", "text": text})
+                        asyncio.run_coroutine_threadsafe(process_query(text), loop)
 
-                threading.Thread(target=start_stt, daemon=True).start()
-                await send_json({"type": "recording_started"})
+                    def on_stt_error(err):
+                        send_json_sync({"type": "error", "message": f"STT error: {err}"})
+
+                    stt = StreamingRecognizer(
+                        on_partial_result=on_partial,
+                        on_final_result=on_final,
+                        on_error=on_stt_error,
+                        loop=loop,
+                    )
+
+                    def start_stt():
+                        try:
+                            stt.start()
+                        except Exception as e:
+                            logger.error("STT start failed: %s", e)
+                            send_json_sync({"type": "error", "message": f"STT start failed: {e}"})
+
+                    threading.Thread(target=start_stt, daemon=True).start()
+                    await send_json({"type": "recording_started"})
 
             elif msg_type == "audio":
                 if stt and stt.is_started:
@@ -150,6 +212,8 @@ async def websocket_endpoint(ws: WebSocket):
 
             elif msg_type == "interrupt":
                 pipeline.interrupt()
+                audio_buffer.clear()
+                await send_json({"type": "tts_interrupted"})
 
             elif msg_type == "clear_history":
                 pipeline.clear_history()
