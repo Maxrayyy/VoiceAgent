@@ -49,6 +49,7 @@ class AudioBuffer:
         self._lock = asyncio.Lock()
         self._max_size = max_batch_size
         self._flush_task = None
+        self._closed = False
 
     def append_sync(self, data: bytes):
         """同步添加数据（从线程调用）"""
@@ -63,7 +64,7 @@ class AudioBuffer:
 
     async def flush(self):
         """发送缓冲区中的所有数据"""
-        if not self._buffer:
+        if self._closed or not self._buffer:
             return
         try:
             encoded = base64.b64encode(bytes(self._buffer)).decode('ascii')
@@ -74,9 +75,15 @@ class AudioBuffer:
             self._buffer.clear()
         except Exception as e:
             logger.error("Failed to send audio buffer: %s", e)
+            self._closed = True
 
     def clear(self):
         """清空缓冲区（打断时调用）"""
+        self._buffer.clear()
+
+    def close(self):
+        """关闭缓冲区，停止发送"""
+        self._closed = True
         self._buffer.clear()
 
 
@@ -241,6 +248,18 @@ async def websocket_endpoint(ws: WebSocket):
         logger.info("WebSocket client disconnected")
     except Exception as e:
         logger.error("WebSocket error: %s", e)
+    finally:
+        # 清理资源：停止 STT、打断 pipeline、关闭 AudioBuffer
+        logger.info("Cleaning up WebSocket resources")
+        audio_buffer.close()
+        pipeline.interrupt()
+        if stt and stt.is_started:
+            def stop_stt():
+                try:
+                    stt.stop()
+                except Exception as e:
+                    logger.warning("Failed to stop STT on cleanup: %s", e)
+            threading.Thread(target=stop_stt, daemon=True).start()
 
 
 def main():
