@@ -7,6 +7,7 @@ venv/
 dist/
 build/
 .DS_Store
+.idea/
 data/faiss_index/
 data/knowledge/
 data/index/
