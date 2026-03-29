@@ -10,7 +10,12 @@
       "Bash(curl -s -L --max-time 30 'https://help.aliyun.com/zh/isi/developer-reference/streaming-speech-synthesis')",
       "Bash(curl -s -L -H \"User-Agent: Mozilla/5.0 \\(X11; Linux x86_64\\) AppleWebKit/537.36\" https://help.aliyun.com/zh/isi/developer-reference/api-reference-1)",
       "Bash(curl -s -L --max-time 30 'https://help.aliyun.com/zh/model-studio/developer-reference/cosyvoice-tts')",
-      "Bash(curl -s -L -H \"User-Agent: Mozilla/5.0 \\(X11; Linux x86_64\\) AppleWebKit/537.36\" https://help.aliyun.com/zh/isi/developer-reference/sdk-for-python-1)"
+      "Bash(curl -s -L -H \"User-Agent: Mozilla/5.0 \\(X11; Linux x86_64\\) AppleWebKit/537.36\" https://help.aliyun.com/zh/isi/developer-reference/sdk-for-python-1)",
+      "Bash(source venv/bin/activate)",
+      "Bash(python scripts/pdf_to_txt.py --first-page 9 --last-page 69)",
+      "Bash(python scripts/pdf_to_txt.py --first-page 9 --last-page 15)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   },
   "enabledPlugins": {
