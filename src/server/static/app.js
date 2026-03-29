@@ -37,6 +37,19 @@ let aiResponding = false;
 // 抑制 STT 结果触发查询（用于模式切换等场景）
 let sttSuppressQuery = false;
 
+// 会话状态机
+const SessionState = {
+    IDLE: 'idle',              // 空闲
+    LISTENING: 'listening',     // 正在监听用户
+    PROCESSING: 'processing',   // AI 正在思考（RAG + LLM）
+    SPEAKING: 'speaking'        // AI 正在播报
+};
+let sessionState = SessionState.IDLE;
+
+// STT 会话管理，防止过期的识别结果触发查询
+let sttSessionId = 0;
+let currentSttSession = 0;
+
 window.addEventListener('DOMContentLoaded', () => {
     toastStack = document.getElementById('toastStack');
     initPanelToggle();
@@ -114,15 +127,17 @@ function toggleRecordMode() {
 
     if (recordMode === 'continuous') {
         recordMode = 'push-to-talk';
+        sessionState = SessionState.IDLE;
         // 按住说话模式，立即允许查询
         setTimeout(() => { sttSuppressQuery = false; }, 100);
     } else {
         recordMode = 'continuous';
         startRecording().then(() => {
-            // 持续监听模式启动后允许查询
+            // 持续监听模式启动后允许查询（状态已在 startRecording 中设置为 LISTENING）
             setTimeout(() => { sttSuppressQuery = false; }, 200);
         }).catch(() => {
             sttSuppressQuery = false;
+            sessionState = SessionState.IDLE;
         });
     }
     updateModeUI();
@@ -288,6 +303,10 @@ async function startRecording() {
         }
 
         isRecording = true;
+        sessionState = SessionState.LISTENING;
+        // 生成新的 STT 会话 ID
+        sttSessionId++;
+        currentSttSession = sttSessionId;
         status.textContent = recordMode === 'continuous' ? '监听中…' : '录音中…';
         monitorMicLevel();
         requestStartRecording();
@@ -376,7 +395,7 @@ function stopRecording(discard = false) {
 
 function requestStartRecording() {
     if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'start_recording' }));
+        ws.send(JSON.stringify({ type: 'start_recording', session_id: currentSttSession }));
         pendingStartCommand = false;
     } else {
         pendingStartCommand = true;
@@ -400,6 +419,10 @@ function handleMessage(msg) {
             }
             break;
         case 'stt_partial':
+            // 检查会话 ID，忽略过期的识别结果
+            if (msg.session_id && msg.session_id !== currentSttSession) {
+                break;
+            }
             // 持续监听模式下，用户说话自动打断当前播报
             if (recordMode === 'continuous' && aiResponding && msg.text && msg.text.length > 3) {
                 interrupt();
@@ -407,6 +430,14 @@ function handleMessage(msg) {
             showUserLive(msg.text);
             break;
         case 'stt_final':
+            // 检查会话 ID，忽略过期的识别结果
+            if (msg.session_id && msg.session_id !== currentSttSession) {
+                if (liveUserEl) {
+                    liveUserEl.remove();
+                    liveUserEl = null;
+                }
+                break;
+            }
             // 检查是否应该抑制查询（如模式切换期间）
             if (sttSuppressQuery) {
                 // 清理 UI 但不触发查询
@@ -416,12 +447,14 @@ function handleMessage(msg) {
                 }
                 break;
             }
+            sessionState = SessionState.PROCESSING;
             finalizeUserLive(msg.text);
             break;
         case 'llm_chunk':
             ttsIgnore = false;
             if (!aiResponding) {
                 // 新回复的第一个 chunk，重置预缓冲
+                sessionState = SessionState.SPEAKING;
                 ttsBuffering = true;
                 ttsPreBuffer = [];
                 ttsPreBufferSamples = 0;
@@ -449,6 +482,8 @@ function handleMessage(msg) {
         case 'tts_interrupted':
             // 后端确认打断，拦截后续残余音频
             ttsIgnore = true;
+            // 打断后根据录音状态决定：录音中返回 LISTENING，否则 IDLE
+            sessionState = isRecording ? SessionState.LISTENING : SessionState.IDLE;
             setAiResponding(false);
             finalizeAssistantStream();
             break;
@@ -692,12 +727,14 @@ function monitorTtsVolume() {
 function waitForTtsPlaybackEnd() {
     // 如果没有 TTS 上下文或音频已播完，立即隐藏
     if (!ttsCtx || ttsCtx.currentTime >= nextStartTime - 0.05) {
+        sessionState = SessionState.IDLE;
         setAiResponding(false);
         return;
     }
     // 轮询等待音频播放结束
     const check = () => {
         if (!ttsCtx || ttsCtx.currentTime >= nextStartTime - 0.05) {
+            sessionState = SessionState.IDLE;
             setAiResponding(false);
             return;
         }

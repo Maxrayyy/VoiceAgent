@@ -159,6 +159,9 @@ async def websocket_endpoint(ws: WebSocket):
 
             if msg_type == "start_recording":
                 async with stt_lock:
+                    # 获取前端发送的会话 ID
+                    session_id = msg.get("session_id", 0)
+
                     # 停止旧的 STT 实例（如果存在）
                     if stt and stt.is_started:
                         old_stt = stt
@@ -172,12 +175,12 @@ async def websocket_endpoint(ws: WebSocket):
 
                         threading.Thread(target=stop_old_stt, daemon=True).start()
 
-                    # 创建新的 STT 实例
-                    def on_partial(text):
-                        send_json_sync({"type": "stt_partial", "text": text})
+                    # 创建新的 STT 实例（回调中携带 session_id）
+                    def on_partial(text, sid=session_id):
+                        send_json_sync({"type": "stt_partial", "text": text, "session_id": sid})
 
-                    def on_final(text):
-                        send_json_sync({"type": "stt_final", "text": text})
+                    def on_final(text, sid=session_id):
+                        send_json_sync({"type": "stt_final", "text": text, "session_id": sid})
                         asyncio.run_coroutine_threadsafe(process_query(text, query_generation), loop)
 
                     def on_stt_error(err):
