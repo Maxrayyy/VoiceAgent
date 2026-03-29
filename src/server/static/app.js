@@ -409,6 +409,7 @@ function handleMessage(msg) {
         case 'tts_done':
             // TTS 合成完毕，刷新预缓冲中的剩余音频
             flushTtsPreBuffer();
+            setAiResponding(false);
             break;
         case 'tts_interrupted':
             // 后端确认打断，拦截后续残余音频
@@ -641,10 +642,8 @@ function monitorTtsVolume() {
     if (now < nextStartTime - 0.1) {
         requestAnimationFrame(monitorTtsVolume);
     } else {
-        // TTS 播放全部结束，隐藏打断按钮
         ttsVolumeLevel = 0.02;
         ttsMonitoring = false;
-        setAiResponding(false);
     }
 }
 
