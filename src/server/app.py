@@ -88,6 +88,7 @@ async def websocket_endpoint(ws: WebSocket):
     pipeline = VoiceChatPipeline(document_store=document_store)
     loop = asyncio.get_event_loop()
     processing = False
+    query_generation = 0  # 打断计数器，防止旧查询在打断后执行
     audio_buffer = AudioBuffer(ws, loop, max_batch_size=8192)
 
     async def send_json(msg: dict):
@@ -99,8 +100,12 @@ async def websocket_endpoint(ws: WebSocket):
     def send_json_sync(msg: dict):
         asyncio.run_coroutine_threadsafe(send_json(msg), loop)
 
-    async def process_query(query: str):
-        nonlocal processing
+    async def process_query(query: str, gen: int = None):
+        nonlocal processing, query_generation
+        # 检查是否在排队期间发生了打断（gen 在调度时捕获）
+        if gen is not None and gen != query_generation:
+            logger.info("Skipping stale query (gen %d != %d): %s", gen, query_generation, query[:30])
+            return
         if processing:
             return
         processing = True
@@ -173,7 +178,7 @@ async def websocket_endpoint(ws: WebSocket):
 
                     def on_final(text):
                         send_json_sync({"type": "stt_final", "text": text})
-                        asyncio.run_coroutine_threadsafe(process_query(text), loop)
+                        asyncio.run_coroutine_threadsafe(process_query(text, query_generation), loop)
 
                     def on_stt_error(err):
                         send_json_sync({"type": "error", "message": f"STT error: {err}"})
@@ -201,14 +206,15 @@ async def websocket_endpoint(ws: WebSocket):
                     stt.feed_audio(audio_bytes)
 
             elif msg_type == "stop_recording":
+                discard = msg.get("discard", False)
                 if stt:
                     current_stt = stt
 
-                    def stop_stt():
+                    def stop_stt(should_discard=discard, gen=query_generation):
                         text = current_stt.stop()
-                        if text:
+                        if text and not should_discard:
                             send_json_sync({"type": "stt_final", "text": text})
-                            asyncio.run_coroutine_threadsafe(process_query(text), loop)
+                            asyncio.run_coroutine_threadsafe(process_query(text, gen), loop)
 
                     threading.Thread(target=stop_stt, daemon=True).start()
                 await send_json({"type": "recording_stopped"})
@@ -219,6 +225,7 @@ async def websocket_endpoint(ws: WebSocket):
                     await process_query(query)
 
             elif msg_type == "interrupt":
+                query_generation += 1
                 pipeline.interrupt()
                 audio_buffer.clear()
                 await send_json({"type": "tts_interrupted"})

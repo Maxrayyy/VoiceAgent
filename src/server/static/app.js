@@ -31,8 +31,11 @@ let ttsIgnore = false;
 // 录音模式: 'continuous' (持续监听) 或 'push-to-talk' (按住说话)
 let recordMode = 'continuous';
 
-// AI 是否正在回复（控制打断按钮显隐）
+// AI 是否正在回复（控制打断按钮启用/禁用）
 let aiResponding = false;
+
+// 抑制 STT 结果触发查询（用于模式切换等场景）
+let sttSuppressQuery = false;
 
 window.addEventListener('DOMContentLoaded', () => {
     toastStack = document.getElementById('toastStack');
@@ -40,6 +43,10 @@ window.addEventListener('DOMContentLoaded', () => {
     initWaveStrip();
     initActionBar();
     connectWS();
+
+    // 初始化打断按钮状态（可见但禁用）
+    setAiResponding(false);
+
     // continuous 模式自动开始录音
     setTimeout(() => {
         if (recordMode === 'continuous') {
@@ -93,8 +100,13 @@ function initActionBar() {
 }
 
 function toggleRecordMode() {
-    // 切换模式时清空状态，相当于新会话
-    stopRecording();
+    // 切换模式时：先打断后端 pipeline，再停止录音
+    sttSuppressQuery = true;  // 抑制 STT 结果触发查询
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'interrupt' }));
+    }
+    stopRecording(true); // discard=true，不触发后端查询
     resetTtsPlayback();
     setAiResponding(false);
     ttsIgnore = true;
@@ -102,9 +114,16 @@ function toggleRecordMode() {
 
     if (recordMode === 'continuous') {
         recordMode = 'push-to-talk';
+        // 按住说话模式，立即允许查询
+        setTimeout(() => { sttSuppressQuery = false; }, 100);
     } else {
         recordMode = 'continuous';
-        startRecording().catch(() => {});
+        startRecording().then(() => {
+            // 持续监听模式启动后允许查询
+            setTimeout(() => { sttSuppressQuery = false; }, 200);
+        }).catch(() => {
+            sttSuppressQuery = false;
+        });
     }
     updateModeUI();
 }
@@ -128,11 +147,9 @@ function updateModeUI() {
 function setAiResponding(responding) {
     aiResponding = responding;
     const btn = document.getElementById('interruptBtn');
-    if (responding) {
-        btn.classList.add('visible');
-    } else {
-        btn.classList.remove('visible');
-    }
+    // 按钮始终可见，用 disabled 属性控制启用/禁用
+    btn.classList.add('visible');
+    btn.disabled = !responding;
 }
 
 function initPanelToggle() {
@@ -318,7 +335,7 @@ function monitorMicLevel() {
     sample();
 }
 
-function stopRecording() {
+function stopRecording(discard = false) {
     if (!isRecording) return;
     isRecording = false;
     pendingStartCommand = false;
@@ -351,9 +368,9 @@ function stopRecording() {
     analyserNode = null;
     analyserDataArray = null;
 
-    // 通知后端
+    // 通知后端（discard=true 时后端不触发查询）
     if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'stop_recording' }));
+        ws.send(JSON.stringify({ type: 'stop_recording', discard: !!discard }));
     }
 }
 
@@ -383,9 +400,22 @@ function handleMessage(msg) {
             }
             break;
         case 'stt_partial':
+            // 持续监听模式下，用户说话自动打断当前播报
+            if (recordMode === 'continuous' && aiResponding && msg.text && msg.text.length > 3) {
+                interrupt();
+            }
             showUserLive(msg.text);
             break;
         case 'stt_final':
+            // 检查是否应该抑制查询（如模式切换期间）
+            if (sttSuppressQuery) {
+                // 清理 UI 但不触发查询
+                if (liveUserEl) {
+                    liveUserEl.remove();
+                    liveUserEl = null;
+                }
+                break;
+            }
             finalizeUserLive(msg.text);
             break;
         case 'llm_chunk':
@@ -413,7 +443,8 @@ function handleMessage(msg) {
         case 'tts_done':
             // TTS 合成完毕，刷新预缓冲中的剩余音频
             flushTtsPreBuffer();
-            setAiResponding(false);
+            // 等待音频实际播放完毕后再隐藏打断按钮
+            waitForTtsPlaybackEnd();
             break;
         case 'tts_interrupted':
             // 后端确认打断，拦截后续残余音频
@@ -545,12 +576,13 @@ let ttsGain = null;
 let nextStartTime = 0;
 let ttsMonitoring = false;
 let ttsDataArray = null;
+let ttsActiveSources = [];  // 所有活跃的音频源，用于立即停止
 
 // TTS 预缓冲：累积足够音频后再开始播放，避免开头卡顿
 let ttsPreBuffer = [];           // 预缓冲队列（base64 数据）
 let ttsPreBufferSamples = 0;     // 已缓冲的采样数
 let ttsBuffering = true;         // 是否处于缓冲阶段
-const TTS_PREBUFFER_SECONDS = 0.8; // 预缓冲时长阈值（秒）
+const TTS_PREBUFFER_SECONDS = 1.5; // 预缓冲时长阈值（秒）
 const TTS_SAMPLE_RATE = 22050;
 
 function enqueueTtsAudio(base64Data) {
@@ -611,6 +643,12 @@ function playTtsAudio(base64Data) {
     source.buffer = buffer;
     source.connect(ttsAnalyser);
 
+    // 添加到活跃源列表，播放结束后自动移除
+    ttsActiveSources.push(source);
+    source.onended = () => {
+        ttsActiveSources = ttsActiveSources.filter(s => s !== source);
+    };
+
     // 计算预调度时间，实现无缝拼接
     const now = ttsCtx.currentTime;
     const scheduledTime = Math.max(now, nextStartTime);
@@ -651,7 +689,34 @@ function monitorTtsVolume() {
     }
 }
 
+function waitForTtsPlaybackEnd() {
+    // 如果没有 TTS 上下文或音频已播完，立即隐藏
+    if (!ttsCtx || ttsCtx.currentTime >= nextStartTime - 0.05) {
+        setAiResponding(false);
+        return;
+    }
+    // 轮询等待音频播放结束
+    const check = () => {
+        if (!ttsCtx || ttsCtx.currentTime >= nextStartTime - 0.05) {
+            setAiResponding(false);
+            return;
+        }
+        requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+}
+
 function resetTtsPlayback() {
+    // 立即停止所有活跃的音频源
+    ttsActiveSources.forEach(source => {
+        try {
+            source.stop(0);  // 立即停止
+        } catch (e) {
+            // 已经停止的源会抛出异常，忽略
+        }
+    });
+    ttsActiveSources = [];
+
     // 重置播放状态（用于打断）
     nextStartTime = 0;
     ttsVolumeLevel = 0.02;
@@ -671,6 +736,11 @@ function resetTtsPlayback() {
 }
 
 function interrupt() {
+    // 如果 AI 未在回复，不执行打断
+    if (!aiResponding) {
+        return;
+    }
+
     // 立即停止 TTS 播放
     resetTtsPlayback();
 
