@@ -15,7 +15,8 @@
       "Bash(python scripts/pdf_to_txt.py --first-page 9 --last-page 69)",
       "Bash(python scripts/pdf_to_txt.py --first-page 9 --last-page 15)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(gh search:*)"
     ]
   },
   "enabledPlugins": {
