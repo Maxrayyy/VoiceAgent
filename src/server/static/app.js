@@ -93,13 +93,17 @@ function initActionBar() {
 }
 
 function toggleRecordMode() {
+    // 切换模式时清空状态，相当于新会话
+    stopRecording();
+    resetTtsPlayback();
+    setAiResponding(false);
+    ttsIgnore = true;
+    clearHistory();
+
     if (recordMode === 'continuous') {
         recordMode = 'push-to-talk';
-        // 停止当前录音
-        stopRecording();
     } else {
         recordMode = 'continuous';
-        // 立即开始持续监听
         startRecording().catch(() => {});
     }
     updateModeUI();
