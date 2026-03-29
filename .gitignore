@@ -10,4 +10,6 @@ build/
 data/faiss_index/
 data/knowledge/
 data/index/
+data/figures/
+data/txt/
 alibabacloud-nls-python-sdk/

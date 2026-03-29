@@ -14,3 +14,11 @@ python-docx>=1.0.0
 
 # Utils
 numpy>=1.24.0
+
+# PDF processing dependencies
+pdf2image==1.17.0
+opencv-python==4.13.0.92
+# PaddlePaddle 兼容版本 (3.3.x 有 PIR+OneDNN bug，需用 3.0.0)
+paddlepaddle==3.0.0
+paddleocr==3.4.0
+paddlex==3.4.3

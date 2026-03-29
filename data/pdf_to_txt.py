@@ -10,38 +10,40 @@ os.environ["DISABLE_MODEL_SOURCE_CHECK"] = "True"
 # =========================
 # PDF 配置
 # =========================
-PDF_PATH = "第1章 排列与组合(1).pdf"
+PDF_PATH = "/home/zhidong_huang/knowledges/data.pdf"
 PAGE_IMAGE_DIR = "data/figures/pages"
-FIGURE_DIR = "data/figures/extracted_figures"
-FORMULA_FIGURE_DIR = "data/figures/formula_figures"
+# FIGURE_DIR = "data/figures/extracted_figures"
+# FORMULA_FIGURE_DIR = "data/figures/formula_figures"
 OUTPUT_TEXT_PATH = "data/txt/full_text.txt"
 FIRST_PAGE = 34
 LAST_PAGE = 34
 DPI = 300
 
 os.makedirs(PAGE_IMAGE_DIR, exist_ok=True)
-os.makedirs(FORMULA_FIGURE_DIR, exist_ok=True)
-os.makedirs(FIGURE_DIR, exist_ok=True)
+# os.makedirs(FORMULA_FIGURE_DIR, exist_ok=True)
+# os.makedirs(FIGURE_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(OUTPUT_TEXT_PATH), exist_ok=True)
 
 # =========================
 # 模型初始化（只加载一次）
 # =========================
 layout_model = create_model(
     model_name="PP-DocLayout_plus-L",
-    model_dir=r"D:\paddle_models\official_models\PP-DocLayout_plus-L_infer",
+    model_dir="/home/zhidong_huang/PDF_models/PP-DocLayout_plus-L_infer",
     device="cpu"
 )
 
 ocr_model = PaddleOCR(
     enable_mkldnn=False,
     cpu_threads=2,
+    #use_gpu=False,
     use_doc_orientation_classify=False,
     use_doc_unwarping=False,
     use_textline_orientation=False,
     text_detection_model_name="PP-OCRv5_server_det",
     text_recognition_model_name="PP-OCRv5_server_rec",
-    text_detection_model_dir=r"D:\paddle_models\official_models\PP-OCRv5_server_det_infer",
-    text_recognition_model_dir=r"D:\paddle_models\official_models\PP-OCRv5_server_rec_infer",
+    text_detection_model_dir="/home/zhidong_huang/PDF_models/PP-OCRv5_server_det_infer",
+    text_recognition_model_dir="/home/zhidong_huang/PDF_models/PP-OCRv5_server_rec_infer",
 )
 
 # =========================
@@ -105,9 +107,6 @@ def process_page(image_path, page_num, output_text_path):
         pprint.pprint(box)
 
     text_blocks = []
-    image_blocks = []
-    figure_title_blocks = []
-    formula_blocks = []
 
     for box in boxes:
         x1, y1, x2, y2 = map(int, box["coordinate"])
@@ -115,12 +114,6 @@ def process_page(image_path, page_num, output_text_path):
 
         if label in ("text", "paragraph_title"):
             text_blocks.append({"bbox": [x1, y1, x2, y2]})
-        elif label == "image":
-            image_blocks.append({"bbox": [x1, y1, x2, y2]})
-        elif label == "figure_title":
-            figure_title_blocks.append({"bbox": [x1, y1, x2, y2]})
-        elif label == "formula":
-            formula_blocks.append({"bbox": [x1, y1, x2, y2]})
 
     # ---------- 正文 OCR ----------
     page_lines = []
@@ -161,96 +154,6 @@ def process_page(image_path, page_num, output_text_path):
         f.write("\n".join(page_lines))
         f.write("\n")
 
-    # # ---------- 图片 + 图注 ----------
-    # for f_block in figure_title_blocks:
-    #     fx1, fy1, fx2, fy2 = f_block["bbox"]
-    #     title_crop = img[fy1:fy2, fx1:fx2]
-    #     title_res = ocr_model.predict(title_crop)
-    #
-    #     figure_name = "figure"
-    #     if title_res and "rec_texts" in title_res[0]:
-    #         text = "".join(title_res[0]["rec_texts"]).strip()
-    #         if text:
-    #             figure_name = text[:50]
-    #
-    #     min_dist = float("inf")
-    #     matched_img = None
-    #     for i_block in image_blocks:
-    #         ix1, iy1, ix2, iy2 = i_block["bbox"]
-    #         dist = fy1 - iy2
-    #         if dist >= 0 and dist < min_dist:
-    #             min_dist = dist
-    #             matched_img = i_block
-    #
-    #     if matched_img:
-    #         ix1, iy1, ix2, iy2 = matched_img["bbox"]
-    #         crop_img = img[iy1:iy2, ix1:ix2]
-    #         save_path = os.path.join(FIGURE_DIR, f"{figure_name}.png")
-    #
-    #         success, encoded = cv2.imencode(".png", crop_img)
-    #         if success:
-    #             with open(save_path, "wb") as f:
-    #                 f.write(encoded.tobytes())
-    figure_idx = 1
-
-    for i_block in image_blocks:
-        ix1, iy1, ix2, iy2 = i_block["bbox"]
-
-        # 裁剪图像
-        crop_img = img[iy1:iy2, ix1:ix2]
-
-        # 找最近的图注（在下方）
-        matched_title = None
-        min_dist = float("inf")
-
-        for f_block in figure_title_blocks:
-            fx1, fy1, fx2, fy2 = f_block["bbox"]
-            dist = fy1 - iy2
-            if 0 <= dist < min_dist:
-                min_dist = dist
-                matched_title = f_block
-
-        figure_name = None
-        if matched_title:
-            title_crop = img[
-                         matched_title["bbox"][1]:matched_title["bbox"][3],
-                         matched_title["bbox"][0]:matched_title["bbox"][2]
-                         ]
-            title_res = ocr_model.predict(title_crop)
-            if title_res and "rec_texts" in title_res[0]:
-                text = "".join(title_res[0]["rec_texts"]).strip()
-                if text:
-                    figure_name = text[:50]
-
-        if not figure_name:
-            figure_name = f"figure_{figure_idx}"
-            figure_idx += 1
-
-        save_path = os.path.join(FIGURE_DIR, f"{figure_name}.png")
-
-        success, encoded = cv2.imencode(".png", crop_img)
-        if success:
-            with open(save_path, "wb") as f:
-                f.write(encoded.tobytes())
-
-    # # ---------- 公式 ----------
-    # page_formula_dir = os.path.join(
-    #     FORMULA_FIGURE_DIR,
-    #     f"page_{page_num:03d}"
-    # )
-    # os.makedirs(page_formula_dir, exist_ok=True)
-    #
-    # for idx, f_block in enumerate(formula_blocks, start=1):
-    #     x1, y1, x2, y2 = f_block["bbox"]
-    #
-    #     crop = img[y1:y2, x1:x2]
-    #     save_path = os.path.join(page_formula_dir, f"formula_{idx}.png")
-    #
-    #     success, encoded = cv2.imencode(".png", crop)
-    #     if success:
-    #         with open(save_path, "wb") as f:
-    #             f.write(encoded.tobytes())
-
     return page_lines
 
 
@@ -282,7 +185,6 @@ def main():
 
     print("\n[表情] 抽取完成")
     print("[表情] 文本目录：", OUTPUT_TEXT_PATH)
-    print("[表情] 图片目录：", FIGURE_DIR)
 
 
 if __name__ == "__main__":
