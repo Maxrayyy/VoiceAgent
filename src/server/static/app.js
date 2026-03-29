@@ -385,11 +385,13 @@ function handleMessage(msg) {
             finalizeUserLive(msg.text);
             break;
         case 'llm_chunk':
-            // 新的回复开始，解除打断拦截，重置预缓冲
             ttsIgnore = false;
-            ttsBuffering = true;
-            ttsPreBuffer = [];
-            ttsPreBufferSamples = 0;
+            if (!aiResponding) {
+                // 新回复的第一个 chunk，重置预缓冲
+                ttsBuffering = true;
+                ttsPreBuffer = [];
+                ttsPreBufferSamples = 0;
+            }
             setAiResponding(true);
             ensureAssistantStream();
             appendAssistantChunk(msg.text);
