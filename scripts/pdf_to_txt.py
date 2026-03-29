@@ -123,13 +123,14 @@ def main():
     parser.add_argument("--first-page", type=int, default=9, help="起始页码")
     parser.add_argument("--last-page", type=int, default=69, help="结束页码")
     parser.add_argument("--dpi", type=int, default=300, help="渲染 DPI")
+    parser.add_argument("--append", action="store_true", help="追加模式，不删除已有文件")
     args = parser.parse_args()
 
     os.makedirs(PAGE_IMAGE_DIR, exist_ok=True)
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
 
-    # 清空旧文件
-    if os.path.exists(args.output):
+    # 清空旧文件（除非追加模式）
+    if not args.append and os.path.exists(args.output):
         os.remove(args.output)
 
     print("初始化模型...")
