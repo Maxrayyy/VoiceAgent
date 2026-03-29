@@ -27,9 +27,9 @@ class EmbeddingClient:
         Returns:
             numpy 数组，shape=(len(texts), dim)
         """
-        # DashScope embedding API 每次最多 25 条
+        # DashScope embedding API 每次最多 10 条
         all_embeddings = []
-        batch_size = 25
+        batch_size = 10
 
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]

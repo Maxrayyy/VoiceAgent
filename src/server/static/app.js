@@ -385,21 +385,28 @@ function handleMessage(msg) {
             finalizeUserLive(msg.text);
             break;
         case 'llm_chunk':
-            // 新的回复开始，解除打断拦截
+            // 新的回复开始，解除打断拦截，重置预缓冲
             ttsIgnore = false;
+            ttsBuffering = true;
+            ttsPreBuffer = [];
+            ttsPreBufferSamples = 0;
             setAiResponding(true);
             ensureAssistantStream();
             appendAssistantChunk(msg.text);
             break;
         case 'llm_done':
             finalizeAssistantStream();
-            setAiResponding(false);
+            // 不在此处隐藏打断按钮，等 TTS 播放完毕再隐藏
             break;
         case 'tts_audio':
             // 被打断后忽略残余音频
             if (!ttsIgnore) {
-                playTtsAudio(msg.data);
+                enqueueTtsAudio(msg.data);
             }
+            break;
+        case 'tts_done':
+            // TTS 合成完毕，刷新预缓冲中的剩余音频
+            flushTtsPreBuffer();
             break;
         case 'tts_interrupted':
             // 后端确认打断，拦截后续残余音频
@@ -532,10 +539,45 @@ let nextStartTime = 0;
 let ttsMonitoring = false;
 let ttsDataArray = null;
 
+// TTS 预缓冲：累积足够音频后再开始播放，避免开头卡顿
+let ttsPreBuffer = [];           // 预缓冲队列（base64 数据）
+let ttsPreBufferSamples = 0;     // 已缓冲的采样数
+let ttsBuffering = true;         // 是否处于缓冲阶段
+const TTS_PREBUFFER_SECONDS = 0.8; // 预缓冲时长阈值（秒）
+const TTS_SAMPLE_RATE = 22050;
+
+function enqueueTtsAudio(base64Data) {
+    if (ttsBuffering) {
+        // 缓冲阶段：累积音频数据
+        ttsPreBuffer.push(base64Data);
+        const audioBytes = base64ToArrayBuffer(base64Data);
+        ttsPreBufferSamples += audioBytes.byteLength / 2; // 16-bit = 2 bytes/sample
+
+        // 缓冲够了，一次性播放
+        if (ttsPreBufferSamples / TTS_SAMPLE_RATE >= TTS_PREBUFFER_SECONDS) {
+            flushTtsPreBuffer();
+        }
+    } else {
+        // 缓冲阶段结束，即时播放
+        playTtsAudio(base64Data);
+    }
+}
+
+function flushTtsPreBuffer() {
+    if (!ttsBuffering) return;
+    ttsBuffering = false;
+    // 一次性提交所有缓冲的音频块
+    for (const data of ttsPreBuffer) {
+        playTtsAudio(data);
+    }
+    ttsPreBuffer = [];
+    ttsPreBufferSamples = 0;
+}
+
 function playTtsAudio(base64Data) {
     // 初始化 AudioContext 和复用的音频节点
     if (!ttsCtx) {
-        ttsCtx = new AudioContext({ sampleRate: 22050 });
+        ttsCtx = new AudioContext({ sampleRate: TTS_SAMPLE_RATE });
         ttsAnalyser = ttsCtx.createAnalyser();
         ttsAnalyser.fftSize = 256;
         ttsDataArray = new Uint8Array(ttsAnalyser.fftSize);
@@ -554,7 +596,7 @@ function playTtsAudio(base64Data) {
     }
 
     // 创建 AudioBuffer
-    const buffer = ttsCtx.createBuffer(1, float32.length, 22050);
+    const buffer = ttsCtx.createBuffer(1, float32.length, TTS_SAMPLE_RATE);
     buffer.getChannelData(0).set(float32);
 
     // 创建 BufferSource 并连接到复用的分析器
@@ -595,12 +637,12 @@ function monitorTtsVolume() {
     // 检查是否还有音频在播放
     const now = ttsCtx.currentTime;
     if (now < nextStartTime - 0.1) {
-        // 还有音频在播放或即将播放
         requestAnimationFrame(monitorTtsVolume);
     } else {
-        // 播放结束
+        // TTS 播放全部结束，隐藏打断按钮
         ttsVolumeLevel = 0.02;
         ttsMonitoring = false;
+        setAiResponding(false);
     }
 }
 
@@ -609,9 +651,12 @@ function resetTtsPlayback() {
     nextStartTime = 0;
     ttsVolumeLevel = 0.02;
     ttsMonitoring = false;
+    // 清空预缓冲
+    ttsPreBuffer = [];
+    ttsPreBufferSamples = 0;
+    ttsBuffering = true;
     if (ttsCtx) {
         const ctx = ttsCtx;
-        // 同步置空，防止 close 期间新的 tts_audio 重建
         ttsCtx = null;
         ttsAnalyser = null;
         ttsGain = null;

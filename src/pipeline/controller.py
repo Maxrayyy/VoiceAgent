@@ -94,6 +94,10 @@ class VoiceChatPipeline:
             logger.error("Pipeline error: %s", e)
             raise
         finally:
+            # LLM 生成结束，通知前端文本流完成
+            if on_done and not self._interrupted:
+                on_done()
+
             if not self._interrupted:
                 # 4. 发送剩余缓冲的文本
                 if on_audio_data and self._text_buffer:
@@ -101,22 +105,19 @@ class VoiceChatPipeline:
                     logger.debug("TTS fed remaining %d chars", len(self._text_buffer))
                     self._text_buffer = ""
 
-                # 5. 完成 TTS 合成
+                # 5. 完成 TTS 合成（阻塞等待）
                 if on_audio_data:
                     self.tts.finish()
             else:
                 self._text_buffer = ""
 
-        # 5. 更新对话历史
+        # 6. 更新对话历史
         if full_response and not self._interrupted:
             self.history.append({"role": "user", "content": query})
             self.history.append({"role": "assistant", "content": full_response})
             # 保留最近 10 轮对话
             if len(self.history) > 20:
                 self.history = self.history[-20:]
-
-        if on_done:
-            on_done()
 
         return full_response
 

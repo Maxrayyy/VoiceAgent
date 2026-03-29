@@ -122,17 +122,20 @@ async def websocket_endpoint(ws: WebSocket):
                     ],
                 })
 
+            def on_llm_done():
+                send_json_sync({"type": "llm_done"})
+
             await pipeline.process_query(
                 query=query,
                 on_llm_chunk=on_llm_chunk,
                 on_audio_data=on_audio,
                 on_rag_sources=on_sources,
+                on_done=on_llm_done,
             )
 
             # 确保所有缓冲的音频都已发送
             await audio_buffer.flush()
 
-            await send_json({"type": "llm_done"})
             await send_json({"type": "tts_done"})
         except Exception as e:
             logger.error("Pipeline error: %s", e)
