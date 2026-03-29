@@ -15,6 +15,11 @@ from src.rag.retriever import DocumentStore
 from src.stt.recognizer import StreamingRecognizer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+# suppress file-watch reload noise in development mode
+logging.getLogger("watchfiles").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="VoiceChat - Aircraft Maintenance Assistant")

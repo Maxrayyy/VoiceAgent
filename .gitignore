@@ -8,3 +8,6 @@ dist/
 build/
 .DS_Store
 data/faiss_index/
+data/knowledge/
+data/index/
+alibabacloud-nls-python-sdk/

@@ -167,8 +167,16 @@ python scripts/ingest_docs.py data/knowledge/维修手册.pdf
 
 ## 五、启动服务
 
+开发模式（启用热重载，会看到 watchfiles 变动日志）：
+
 ```bash
-python -m src.server.app
+uvicorn src.server.app:app --reload --host 0.0.0.0 --port 8000
+```
+
+生产/调试模式（关闭热重载，避免 `watchfiles.main X changes detected` 重复日志）：
+
+```bash
+uvicorn src.server.app:app --host 0.0.0.0 --port 8000
 ```
 
 浏览器访问 http://localhost:8000
