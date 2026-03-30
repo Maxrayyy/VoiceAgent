@@ -14,3 +14,4 @@ data/index/
 data/figures/
 data/txt/
 alibabacloud-nls-python-sdk/
+.claude/*.local.json
