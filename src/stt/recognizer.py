@@ -39,18 +39,16 @@ class NlsTokenManager:
 
         try:
             response = client.do_action_with_exception(request)
-            print(response)
-
             jss = json.loads(response)
             if 'Token' in jss and 'Id' in jss['Token']:
                 self._token = jss['Token']['Id']
                 self._expire_time = jss['Token']['ExpireTime']
                 logger.info("NLS Token refreshed, expires at %s", self._expire_time)
-                print("token = " + self._token)
-                print("expireTime = " + str(self._expire_time))
                 return self._token
+            raise RuntimeError("Invalid NLS token response structure")
         except Exception as e:
-            print(e)
+            logger.exception("Failed to refresh NLS token")
+            raise RuntimeError("Failed to refresh NLS token") from e
 
 
 _token_manager = NlsTokenManager()
@@ -80,6 +78,18 @@ class StreamingRecognizer:
                 self._loop = None
         self._started = False
         self._final_text = ""
+        self._final_result_lock = threading.Lock()
+        self._final_result_delivered = False
+
+    def _consume_final_result(self, text: Optional[str] = None) -> Optional[str]:
+        """线程安全地获取一次最终结果，避免 SDK 回调与 stop() 重复提交。"""
+        with self._final_result_lock:
+            if text:
+                self._final_text = text
+            if not self._final_text or self._final_result_delivered:
+                return None
+            self._final_result_delivered = True
+            return self._final_text
 
     def _cb_on_start(self, message, *args):
         logger.debug("STT started: %s", message)
@@ -106,13 +116,13 @@ class StreamingRecognizer:
         try:
             msg = json.loads(message)
             text = msg.get("payload", {}).get("result", "")
-            if text:
-                self._final_text = text
+            final_text = self._consume_final_result(text)
+            if final_text:
                 if self._on_final_result:
                     if self._loop:
-                        self._loop.call_soon_threadsafe(self._on_final_result, text)
+                        self._loop.call_soon_threadsafe(self._on_final_result, final_text)
                     else:
-                        self._on_final_result(text)
+                        self._on_final_result(final_text)
         except Exception as e:
             logger.error("Error parsing sentence end: %s", e)
 
@@ -148,7 +158,9 @@ class StreamingRecognizer:
             on_close=self._cb_on_close,
         )
 
-        self._final_text = ""
+        with self._final_result_lock:
+            self._final_text = ""
+            self._final_result_delivered = False
         self._transcriber.start(
             aformat="pcm",
             sample_rate=16000,
@@ -167,7 +179,7 @@ class StreamingRecognizer:
         if self._transcriber:
             self._transcriber.stop()
         self._started = False
-        return self._final_text
+        return self._consume_final_result() or ""
 
     @property
     def is_started(self) -> bool:

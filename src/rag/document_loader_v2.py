@@ -2,7 +2,6 @@
 import logging
 import os
 import re
-from typing import Generator
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +13,21 @@ def clean_text(text: str) -> str:
     # 去除多余空行（保留最多一个空行）
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
+
+
+def split_into_sentences(text: str) -> list[str]:
+    """稳定切分句子，保留末尾无标点文本，避免丢句和重复句。"""
+    sentence_endings = "。！？.!?;；"
+    pattern = re.compile(rf"[^{re.escape(sentence_endings)}]+(?:[{re.escape(sentence_endings)}]+|$)")
+    sentences = [match.group(0).strip() for match in pattern.finditer(text) if match.group(0).strip()]
+    return sentences or ([text.strip()] if text.strip() else [])
+
+
+def split_oversized_sentence(sentence: str, max_chunk_size: int) -> list[str]:
+    """单句过长时按固定长度兜底切开，避免 chunk 超长。"""
+    if len(sentence) <= max_chunk_size:
+        return [sentence]
+    return [sentence[i:i + max_chunk_size] for i in range(0, len(sentence), max_chunk_size)]
 
 
 def split_by_paragraph(text: str, min_chunk_size: int = 300, max_chunk_size: int = 800) -> list[str]:
@@ -56,20 +70,17 @@ def split_by_paragraph(text: str, min_chunk_size: int = 300, max_chunk_size: int
 
         # 如果单个段落超长，按句子切分
         if len(current_chunk) > max_chunk_size:
-            sentences = re.split(r'([。！？])', current_chunk)
-            # 重新组合句子（保留标点）
-            sentences = [''.join(sentences[i:i+2]) for i in range(0, len(sentences)-1, 2)]
-            if len(sentences) % 2 == 1:
-                sentences.append(sentences[-1])
+            sentences = []
+            for sentence in split_into_sentences(current_chunk):
+                sentences.extend(split_oversized_sentence(sentence, max_chunk_size))
 
             temp_chunk = ""
             for sent in sentences:
-                if len(temp_chunk) + len(sent) <= max_chunk_size:
-                    temp_chunk += sent
-                else:
-                    if temp_chunk:
-                        chunks.append(temp_chunk)
+                if temp_chunk and len(temp_chunk) + len(sent) > max_chunk_size:
+                    chunks.append(temp_chunk)
                     temp_chunk = sent
+                else:
+                    temp_chunk += sent
             current_chunk = temp_chunk
 
     # 添加最后一个chunk

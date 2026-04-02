@@ -94,9 +94,12 @@ async def websocket_endpoint(ws: WebSocket):
 
     pipeline = VoiceChatPipeline(document_store=document_store)
     loop = asyncio.get_event_loop()
-    processing = False
+    query_lock = asyncio.Lock()
     query_generation = 0  # 打断计数器，防止旧查询在打断后执行
     audio_buffer = AudioBuffer(ws, loop, max_batch_size=8192)
+    stt: StreamingRecognizer | None = None
+    stt_lock = asyncio.Lock()
+    active_stt_session_id: int | None = None
 
     async def send_json(msg: dict):
         try:
@@ -107,56 +110,79 @@ async def websocket_endpoint(ws: WebSocket):
     def send_json_sync(msg: dict):
         asyncio.run_coroutine_threadsafe(send_json(msg), loop)
 
+    def submit_stt_final(
+        text: str,
+        *,
+        sid: int,
+        recognizer: StreamingRecognizer,
+        gen: int,
+        should_query: bool = True,
+    ):
+        nonlocal stt, active_stt_session_id
+        if not text:
+            return
+        if recognizer is not stt:
+            logger.info("Ignoring stale STT final from inactive recognizer: sid=%s", sid)
+            return
+        if sid != active_stt_session_id:
+            logger.info(
+                "Ignoring STT final from inactive session: sid=%s active=%s",
+                sid,
+                active_stt_session_id,
+            )
+            return
+
+        send_json_sync({"type": "stt_final", "text": text, "session_id": sid})
+        if should_query:
+            asyncio.run_coroutine_threadsafe(process_query(text, gen), loop)
+
     async def process_query(query: str, gen: int = None):
-        nonlocal processing, query_generation
+        nonlocal query_generation
         # 检查是否在排队期间发生了打断（gen 在调度时捕获）
         if gen is not None and gen != query_generation:
             logger.info("Skipping stale query (gen %d != %d): %s", gen, query_generation, query[:30])
             return
-        if processing:
-            return
-        processing = True
 
-        try:
-            def on_llm_chunk(chunk):
-                send_json_sync({"type": "llm_chunk", "text": chunk})
+        async with query_lock:
+            if gen is not None and gen != query_generation:
+                logger.info("Skipping stale queued query (gen %d != %d): %s", gen, query_generation, query[:30])
+                return
 
-            def on_audio(data):
-                # 使用批量缓冲区减少 WebSocket 消息数量
-                audio_buffer.append_sync(data)
+            try:
+                def on_llm_chunk(chunk):
+                    send_json_sync({"type": "llm_chunk", "text": chunk})
 
-            def on_sources(sources):
-                send_json_sync({
-                    "type": "rag_sources",
-                    "sources": [
-                        {"content": s["content"][:200], "source": s["source"], "score": s["score"]}
-                        for s in sources
-                    ],
-                })
+                def on_audio(data):
+                    # 使用批量缓冲区减少 WebSocket 消息数量
+                    audio_buffer.append_sync(data)
 
-            def on_llm_done():
-                send_json_sync({"type": "llm_done"})
+                def on_sources(sources):
+                    send_json_sync({
+                        "type": "rag_sources",
+                        "sources": [
+                            {"content": s["content"][:200], "source": s["source"], "score": s["score"]}
+                            for s in sources
+                        ],
+                    })
 
-            await pipeline.process_query(
-                query=query,
-                on_llm_chunk=on_llm_chunk,
-                on_audio_data=on_audio,
-                on_rag_sources=on_sources,
-                on_done=on_llm_done,
-            )
+                def on_llm_done():
+                    send_json_sync({"type": "llm_done"})
 
-            # 确保所有缓冲的音频都已发送
-            await audio_buffer.flush()
+                await pipeline.process_query(
+                    query=query,
+                    on_llm_chunk=on_llm_chunk,
+                    on_audio_data=on_audio,
+                    on_rag_sources=on_sources,
+                    on_done=on_llm_done,
+                )
 
-            await send_json({"type": "tts_done"})
-        except Exception as e:
-            logger.error("Pipeline error: %s", e)
-            await send_json({"type": "error", "message": str(e)})
-        finally:
-            processing = False
+                # 确保所有缓冲的音频都已发送
+                await audio_buffer.flush()
 
-    stt: StreamingRecognizer | None = None
-    stt_lock = asyncio.Lock()
+                await send_json({"type": "tts_done"})
+            except Exception as e:
+                logger.error("Pipeline error: %s", e)
+                await send_json({"type": "error", "message": str(e)})
 
     try:
         while True:
@@ -168,6 +194,7 @@ async def websocket_endpoint(ws: WebSocket):
                 async with stt_lock:
                     # 获取前端发送的会话 ID
                     session_id = msg.get("session_id", 0)
+                    active_stt_session_id = session_id
 
                     # 停止旧的 STT 实例（如果存在）
                     if stt and stt.is_started:
@@ -182,27 +209,34 @@ async def websocket_endpoint(ws: WebSocket):
 
                         threading.Thread(target=stop_old_stt, daemon=True).start()
 
+                    new_stt: StreamingRecognizer
+
                     # 创建新的 STT 实例（回调中携带 session_id）
                     def on_partial(text, sid=session_id):
                         send_json_sync({"type": "stt_partial", "text": text, "session_id": sid})
 
-                    def on_final(text, sid=session_id):
-                        send_json_sync({"type": "stt_final", "text": text, "session_id": sid})
-                        asyncio.run_coroutine_threadsafe(process_query(text, query_generation), loop)
+                    def on_final(text, sid=session_id, recognizer=lambda: new_stt):
+                        submit_stt_final(
+                            text,
+                            sid=sid,
+                            recognizer=recognizer(),
+                            gen=query_generation,
+                        )
 
                     def on_stt_error(err):
                         send_json_sync({"type": "error", "message": f"STT error: {err}"})
 
-                    stt = StreamingRecognizer(
+                    new_stt = StreamingRecognizer(
                         on_partial_result=on_partial,
                         on_final_result=on_final,
                         on_error=on_stt_error,
                         loop=loop,
                     )
+                    stt = new_stt
 
                     def start_stt():
                         try:
-                            stt.start()
+                            new_stt.start()
                         except Exception as e:
                             logger.error("STT start failed: %s", e)
                             send_json_sync({"type": "error", "message": f"STT start failed: {e}"})
@@ -219,12 +253,20 @@ async def websocket_endpoint(ws: WebSocket):
                 discard = msg.get("discard", False)
                 if stt:
                     current_stt = stt
+                    current_session_id = active_stt_session_id
+                    if discard:
+                        stt = None
+                        active_stt_session_id = None
 
-                    def stop_stt(should_discard=discard, gen=query_generation):
+                    def stop_stt(should_discard=discard, gen=query_generation, sid=current_session_id):
                         text = current_stt.stop()
                         if text and not should_discard:
-                            send_json_sync({"type": "stt_final", "text": text})
-                            asyncio.run_coroutine_threadsafe(process_query(text, gen), loop)
+                            submit_stt_final(
+                                text,
+                                sid=sid,
+                                recognizer=current_stt,
+                                gen=gen,
+                            )
 
                     threading.Thread(target=stop_stt, daemon=True).start()
                 await send_json({"type": "recording_stopped"})
