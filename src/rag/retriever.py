@@ -1,3 +1,4 @@
+"""文档向量存储与检索 —— 支持稠密检索、BM25 稀疏检索、混合检索、重排序"""
 import json
 import logging
 import os
@@ -6,12 +7,48 @@ from typing import Optional
 import faiss
 import numpy as np
 
+from src.rag.search.bm25_index import BM25Index
 from src.rag.document_loader_v2 import load_documents
 from src.rag.embeddings import EmbeddingClient
+from src.rag.search.reranker import Reranker
 
 logger = logging.getLogger(__name__)
 
 INDEX_DIR = os.path.join(os.path.dirname(__file__), "../../data/index")
+
+
+def reciprocal_rank_fusion(
+    results_list: list[list[dict]],
+    k: int = 60,
+) -> list[dict]:
+    """
+    RRF 融合多路检索结果。
+
+    Args:
+        results_list: 多路检索结果，每路为 [{"content": str, ...}, ...]
+        k: RRF 参数（默认 60）
+
+    Returns:
+        融合后按 RRF 分数排序的结果列表
+    """
+    score_map: dict[str, float] = {}
+    doc_map: dict[str, dict] = {}
+
+    for results in results_list:
+        for rank, doc in enumerate(results):
+            key = doc["content"]
+            score_map[key] = score_map.get(key, 0.0) + 1.0 / (k + rank + 1)
+            if key not in doc_map:
+                doc_map[key] = doc.copy()
+
+    sorted_keys = sorted(score_map.keys(), key=lambda x: score_map[x], reverse=True)
+    fused = []
+    for key in sorted_keys:
+        doc = doc_map[key]
+        doc["rrf_score"] = score_map[key]
+        fused.append(doc)
+
+    return fused
 
 
 class DocumentStore:
@@ -20,27 +57,30 @@ class DocumentStore:
     def __init__(self):
         self._embedding = EmbeddingClient()
         self._index: Optional[faiss.IndexFlatIP] = None
-        self._documents: list[dict] = []  # [{"content": ..., "source": ...}]
+        self._documents: list[dict] = []
+        self._bm25 = BM25Index()
+        self._reranker = Reranker()
 
-    def add_documents(self, path: str) -> int:
+    def add_documents(self, path: str, documents: Optional[list[dict]] = None) -> int:
         """
         导入文档到向量索引。
 
         Args:
-            path: 文件或目录路径
+            path: 文件或目录路径（当 documents 为 None 时使用）
+            documents: 预处理好的文档列表（可选，用于传入已增强的文档）
 
         Returns:
             导入的 chunk 数量
         """
-        docs = load_documents(path)
+        docs = documents if documents is not None else load_documents(path)
         if not docs:
             logger.warning("No documents loaded from %s", path)
             return 0
 
-        texts = [d["content"] for d in docs]
+        # embedding 使用 enriched_content（如果有），否则用 content
+        texts = [d.get("enriched_content", d["content"]) for d in docs]
         embeddings = self._embedding.embed(texts)
 
-        # 归一化用于内积相似度（等价于余弦相似度）
         faiss.normalize_L2(embeddings)
 
         if self._index is None:
@@ -50,20 +90,14 @@ class DocumentStore:
         self._index.add(embeddings)
         self._documents.extend(docs)
 
+        # 构建 BM25 索引
+        self._bm25.build(self._documents)
+
         logger.info("Added %d chunks to index (total: %d)", len(docs), len(self._documents))
         return len(docs)
 
-    def search(self, query: str, top_k: int = 5) -> list[dict]:
-        """
-        检索相关文档片段。
-
-        Args:
-            query: 查询文本
-            top_k: 返回数量
-
-        Returns:
-            [{"content": str, "source": str, "score": float}]
-        """
+    def _dense_search(self, query: str, top_k: int) -> list[dict]:
+        """FAISS 稠密检索"""
         if self._index is None or self._index.ntotal == 0:
             return []
 
@@ -78,9 +112,56 @@ class DocumentStore:
                 continue
             doc = self._documents[idx].copy()
             doc["score"] = float(score)
+            doc.pop("enriched_content", None)
             results.append(doc)
 
         return results
+
+    def _sparse_search(self, query: str, top_k: int) -> list[dict]:
+        """BM25 稀疏检索"""
+        return self._bm25.search(query, top_k=top_k)
+
+    def _hybrid_search(self, query: str, top_k: int) -> list[dict]:
+        """混合检索：RRF 融合稠密 + 稀疏结果"""
+        n_candidates = top_k * 4
+        dense_results = self._dense_search(query, n_candidates)
+        sparse_results = self._sparse_search(query, n_candidates)
+
+        if not sparse_results:
+            return dense_results[:top_k]
+
+        fused = reciprocal_rank_fusion([dense_results, sparse_results])
+        return fused[:top_k]
+
+    def search(self, query: str, top_k: int = 5,
+               mode: str = "hybrid", rerank: bool = True) -> list[dict]:
+        """
+        检索相关文档片段。
+
+        Args:
+            query: 查询文本
+            top_k: 返回数量
+            mode: 检索模式 ("dense", "sparse", "hybrid")
+            rerank: 是否启用重排序
+
+        Returns:
+            [{"content": str, "source": str, "score": float}]
+        """
+        fetch_k = top_k * 4 if rerank else top_k
+
+        if mode == "dense":
+            results = self._dense_search(query, fetch_k)
+        elif mode == "sparse":
+            results = self._sparse_search(query, fetch_k)
+        elif mode == "hybrid":
+            results = self._hybrid_search(query, fetch_k)
+        else:
+            raise ValueError(f"未知检索模式: {mode}")
+
+        if rerank and results:
+            results = self._reranker.rerank(query, results, top_n=top_k)
+
+        return results[:top_k]
 
     def save(self, path: Optional[str] = None) -> None:
         """保存索引和文档元数据到磁盘"""
@@ -91,6 +172,7 @@ class DocumentStore:
             faiss.write_index(self._index, os.path.join(save_dir, "index.faiss"))
             with open(os.path.join(save_dir, "documents.json"), "w", encoding="utf-8") as f:
                 json.dump(self._documents, f, ensure_ascii=False, indent=2)
+            self._bm25.save(save_dir)
             logger.info("Index saved to %s (%d documents)", save_dir, len(self._documents))
 
     def load(self, path: Optional[str] = None) -> bool:
@@ -106,6 +188,12 @@ class DocumentStore:
         self._index = faiss.read_index(index_path)
         with open(docs_path, "r", encoding="utf-8") as f:
             self._documents = json.load(f)
+
+        # 加载或重建 BM25 索引
+        if not self._bm25.load(load_dir):
+            logger.info("BM25 索引未找到，从文档重建...")
+            self._bm25.build(self._documents)
+            self._bm25.save(load_dir)
 
         logger.info("Index loaded from %s (%d documents)", load_dir, len(self._documents))
         return True
