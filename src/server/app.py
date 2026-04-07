@@ -39,6 +39,11 @@ async def index():
     return FileResponse(str(STATIC_DIR / "index.html"))
 
 
+@app.get("/v2")
+async def index_v2():
+    return FileResponse(str(STATIC_DIR / "index_v2.html"))
+
+
 class AudioBuffer:
     """音频数据批量发送缓冲区，减少 WebSocket 消息数量"""
 
