@@ -31,9 +31,9 @@
     --green-glow: rgba(48, 208, 112, 0.3);
     --green-dim: rgba(48, 208, 112, 0.12);
 
-    --text-primary: #c0c8d8;
-    --text-secondary: #708090;
-    --text-muted: #485060;
+    --text-primary: #e0e6f0;
+    --text-secondary: #a0aab8;
+    --text-muted: #708090;
 
     /* 字体 */
     --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
@@ -132,13 +132,9 @@ body {
     text-shadow: 0 0 20px rgba(0, 200, 224, 0.15);
 }
 
+/* brand-sub 已移除，保留选择器避免样式报错 */
 .brand-sub {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 400;
-    letter-spacing: 0.32em;
-    color: var(--text-muted);
-    text-transform: uppercase;
+    display: none;
 }
 
 .panel-toggle {
@@ -211,12 +207,11 @@ body {
 .wave-label-right {
     position: absolute;
     top: 10px;
-    font-family: var(--font-mono);
-    font-size: 10px;
+    font-family: var(--font-body);
+    font-size: 14px;
     font-weight: 500;
-    letter-spacing: 0.18em;
-    color: var(--text-muted);
-    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-secondary);
     z-index: 3;
     pointer-events: none;
 }
@@ -228,7 +223,8 @@ body {
 .wave-label-right {
     right: 16px;
     color: var(--cyan);
-    opacity: 0.7;
+    font-size: 15px;
+    font-weight: 600;
 }
 
 /* ── 对话区 ── */
@@ -297,29 +293,27 @@ body {
 
 /* 用户消息：右侧，琥珀色调 */
 .bubble-row.user .bubble-card {
-    background: var(--amber-dim);
-    border: 1px solid rgba(232, 160, 32, 0.18);
+    background: rgba(232, 160, 32, 0.1);
+    border: 1px solid rgba(232, 160, 32, 0.2);
     border-left: 3px solid var(--amber);
-    color: #ddd0b8;
+    color: #f0e8d8;
 }
 
 /* 助手消息：左侧，青色调 */
 .bubble-row.assistant .bubble-card {
-    background: var(--cyan-dim);
-    border: 1px solid rgba(0, 200, 224, 0.12);
+    background: rgba(0, 200, 224, 0.08);
+    border: 1px solid rgba(0, 200, 224, 0.15);
     border-left: 3px solid var(--cyan);
-    color: var(--text-primary);
+    color: #e8eef6;
 }
 
-/* 系统消息：居中，暗淡 */
+/* 系统消息：居中 */
 .bubble-row.system .bubble-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
 }
 
 @keyframes hudFadeIn {
@@ -401,25 +395,24 @@ body {
 }
 
 .panel-header-tag {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.3em;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
     color: var(--cyan);
-    opacity: 0.6;
+    opacity: 0.8;
     border-bottom: 1px solid var(--border-subtle);
     padding-bottom: 12px;
     display: block;
 }
 
 .glass-panel h3 {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     margin-bottom: 14px;
-    color: var(--amber-muted);
+    color: var(--amber);
 }
 
 .panel-actions {
@@ -436,7 +429,7 @@ body {
     color: var(--text-primary);
     cursor: pointer;
     font-family: var(--font-body);
-    font-size: 13px;
+    font-size: 14px;
     transition: all 0.2s ease;
     text-align: left;
 }
@@ -472,29 +465,27 @@ body {
 }
 
 .sources-empty {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--text-muted);
-    letter-spacing: 0.08em;
+    font-size: 13px;
+    color: var(--text-secondary);
 }
 
 .source-item {
     font-size: 13px;
     line-height: 1.6;
-    color: var(--text-secondary);
+    color: var(--text-primary);
     padding: 10px 12px;
-    background: rgba(0, 200, 224, 0.03);
+    background: rgba(0, 200, 224, 0.04);
     border: 1px solid var(--border-subtle);
     border-radius: 4px;
-    border-left: 2px solid rgba(232, 160, 32, 0.3);
+    border-left: 2px solid rgba(232, 160, 32, 0.4);
 }
 
 .source-meta {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.15em;
+    font-size: 11px;
+    letter-spacing: 0.08em;
     margin-top: 6px;
-    color: var(--amber-muted);
+    color: var(--amber);
+    opacity: 0.7;
 }
 
 /* ── 底部浮动操作栏 ── */
@@ -520,9 +511,9 @@ body {
 .action-btn {
     border: 1px solid transparent;
     border-radius: 6px;
-    padding: 9px 18px;
+    padding: 10px 20px;
     font-family: var(--font-body);
-    font-size: 13px;
+    font-size: 14px;
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.2s ease;
@@ -623,9 +614,9 @@ body {
     padding: 10px 20px;
     border-radius: 6px;
     text-align: center;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.06em;
+    font-family: var(--font-body);
+    font-size: 14px;
+    letter-spacing: 0.04em;
     background: var(--bg-panel);
     border: 1px solid var(--border-accent);
     color: var(--cyan);
