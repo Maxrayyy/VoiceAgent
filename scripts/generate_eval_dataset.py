@@ -20,13 +20,13 @@ OUTPUT_PATH = os.path.join(PROJECT_ROOT, "data/eval/test_queries.json")
 PROMPT_TEMPLATE = """你是一名飞机维修工程师。请基于以下技术文档片段，完成两个任务：
 
 1. 生成一个自然的技术咨询问题，像你在维修现场会问的那样
-2. 从片段中提取一个 20-50 字的关键短语，该短语能唯一标识这个片段的核心内容
+2. 从片段中【逐字复制】一段 20-50 字的关键文本，不要做任何修改、省略或改写
 
 文档片段：
 {chunk}
 
 请严格以 JSON 格式输出，不要输出其他内容：
-{{"query": "你的问题", "golden_content": "从片段中提取的关键短语"}}"""
+{{"query": "你的问题", "golden_content": "从片段中逐字复制的关键文本"}}"""
 
 
 def generate_questions(chunks: list[dict], n_samples: int = 30) -> list[dict]:
@@ -51,7 +51,7 @@ def generate_questions(chunks: list[dict], n_samples: int = 30) -> list[dict]:
             resp = client.chat.completions.create(
                 model=config.LLM_MODEL,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
+                temperature=0.3,
             )
             text = resp.choices[0].message.content.strip()
             # 解析 JSON（处理可能的 markdown 包裹）
