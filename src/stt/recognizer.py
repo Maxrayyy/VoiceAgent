@@ -82,14 +82,18 @@ class StreamingRecognizer:
         self._final_result_delivered = False
 
     def _consume_final_result(self, text: Optional[str] = None) -> Optional[str]:
-        """线程安全地获取一次最终结果，避免 SDK 回调与 stop() 重复提交。"""
+        """线程安全地获取最终结果，避免 SDK 回调与 stop() 对同一句重复提交。"""
         with self._final_result_lock:
             if text:
                 self._final_text = text
+                # 新文本到达，重置交付标志以允许本句交付
+                self._final_result_delivered = False
             if not self._final_text or self._final_result_delivered:
                 return None
             self._final_result_delivered = True
-            return self._final_text
+            result = self._final_text
+            self._final_text = ""
+            return result
 
     def _cb_on_start(self, message, *args):
         logger.debug("STT started: %s", message)

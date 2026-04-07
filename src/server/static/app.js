@@ -449,6 +449,12 @@ function handleMessage(msg) {
             }
             sessionState = SessionState.PROCESSING;
             finalizeUserLive(msg.text);
+            // 连续模式下：当前 STT 会话已完成识别，重启新 STT 会话以准备下次对话
+            if (recordMode === 'continuous' && isRecording) {
+                sttSessionId++;
+                currentSttSession = sttSessionId;
+                requestStartRecording();
+            }
             break;
         case 'llm_chunk':
             ttsIgnore = false;
@@ -725,17 +731,31 @@ function monitorTtsVolume() {
 }
 
 function waitForTtsPlaybackEnd() {
-    // 如果没有 TTS 上下文或音频已播完，立即隐藏
-    if (!ttsCtx || ttsCtx.currentTime >= nextStartTime - 0.05) {
+    const onPlaybackDone = () => {
         sessionState = SessionState.IDLE;
         setAiResponding(false);
+        // 连续模式下：播放结束后自动恢复监听
+        if (recordMode === 'continuous') {
+            if (!isRecording) {
+                startRecording().catch(() => {});
+            } else {
+                // 录音已在进行，确保后端 STT 会话就绪
+                sttSessionId++;
+                currentSttSession = sttSessionId;
+                requestStartRecording();
+            }
+        }
+    };
+
+    // 如果没有 TTS 上下文或音频已播完，立即结束
+    if (!ttsCtx || ttsCtx.currentTime >= nextStartTime - 0.05) {
+        onPlaybackDone();
         return;
     }
     // 轮询等待音频播放结束
     const check = () => {
         if (!ttsCtx || ttsCtx.currentTime >= nextStartTime - 0.05) {
-            sessionState = SessionState.IDLE;
-            setAiResponding(false);
+            onPlaybackDone();
             return;
         }
         requestAnimationFrame(check);
