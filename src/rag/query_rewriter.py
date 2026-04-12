@@ -43,6 +43,10 @@ class QueryRewriter:
         Returns:
             改写后的检索查询（失败时返回原始查询）
         """
+        # 空查询直接返回
+        if not query or not query.strip():
+            return query or ""
+
         # 短路：无历史且查询足够长，认为已经清晰
         if not history and len(query) > self.SKIP_THRESHOLD:
             return query

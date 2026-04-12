@@ -13,7 +13,7 @@ def rewriter():
 
 class TestQueryRewriter:
     @pytest.mark.anyio
-    async def test_no_history_short_query_skips_rewrite(self, rewriter):
+    async def test_no_history_short_query_calls_llm(self, rewriter):
         """无历史且短查询（<=15字）应调用 LLM 改写"""
         with patch.object(rewriter, "_call_llm", new_callable=AsyncMock) as mock_llm:
             mock_llm.return_value = "起落架减震支柱故障维修方法"
