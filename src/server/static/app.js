@@ -358,7 +358,7 @@ function monitorMicLevel() {
         }
         const avg = sum / analyserDataArray.length;
         micVolumeLevel = Math.min(0.9, Math.max(avg / 60, 0.02));
-        // 非播报状态下更新噪声基线（仅 IDLE 和 LISTENING）
+        // 非播报状态下更新噪声基线
         if (sessionState !== SessionState.SPEAKING) {
             vadNoiseBaseline += VAD_BASELINE_ALPHA * (avg - vadNoiseBaseline);
         }
@@ -371,6 +371,7 @@ function monitorMicLevel() {
 
 function stopRecording(discard = false) {
     if (!isRecording) return;
+    stopVadMonitoring();
     isRecording = false;
     pendingStartCommand = false;
 
