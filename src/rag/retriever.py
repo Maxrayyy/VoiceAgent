@@ -133,8 +133,30 @@ class DocumentStore:
         fused = reciprocal_rank_fusion([dense_results, sparse_results])
         return fused[:top_k]
 
+    @staticmethod
+    def _match_filters(doc: dict, filters: dict) -> bool:
+        """检查文档是否匹配过滤条件"""
+        if not filters:
+            return True
+        # 章节过滤（支持子字符串匹配）
+        if "chapter" in filters:
+            if filters["chapter"] not in doc.get("chapter", ""):
+                return False
+        # 小节精确匹配
+        if "section" in filters:
+            if doc.get("section", "") != filters["section"]:
+                return False
+        # 页码范围过滤
+        if "page_min" in filters:
+            if doc.get("page", 0) < filters["page_min"]:
+                return False
+        if "page_max" in filters:
+            if doc.get("page", 0) > filters["page_max"]:
+                return False
+        return True
+
     def search(self, query: str, top_k: int = 5,
-               mode: str = "hybrid", rerank: bool = True) -> list[dict]:
+               mode: str = "hybrid", rerank: bool = True, filters: Optional[dict] = None) -> list[dict]:
         """
         检索相关文档片段。
 
@@ -143,6 +165,7 @@ class DocumentStore:
             top_k: 返回数量
             mode: 检索模式 ("dense", "sparse", "hybrid")
             rerank: 是否启用重排序
+            filters: 元数据过滤条件（可选）
 
         Returns:
             [{"content": str, "source": str, "score": float}]
@@ -157,6 +180,10 @@ class DocumentStore:
             results = self._hybrid_search(query, fetch_k)
         else:
             raise ValueError(f"未知检索模式: {mode}")
+
+        # 元数据过滤（后过滤）
+        if filters:
+            results = [r for r in results if self._match_filters(r, filters)]
 
         if rerank and results:
             results = self._reranker.rerank(query, results, top_n=top_k)

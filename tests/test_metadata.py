@@ -108,3 +108,37 @@ class TestMetadataExtraction:
             assert "page" in doc
             assert "content" in doc
             assert "source" in doc
+
+
+from src.rag.retriever import DocumentStore
+
+
+class TestMetadataFiltering:
+    """测试检索时的元数据过滤"""
+
+    def test_match_filters_chapter(self):
+        """按章节过滤"""
+        store = DocumentStore()
+        doc = {"content": "test", "source": "t.txt", "chapter": "第2章飞机座椅", "section": "2.1", "page": 17}
+        assert store._match_filters(doc, {"chapter": "第2章飞机座椅"}) is True
+        assert store._match_filters(doc, {"chapter": "第1章飞机客舱"}) is False
+
+    def test_match_filters_page_range(self):
+        """按页码范围过滤"""
+        store = DocumentStore()
+        doc = {"content": "test", "source": "t.txt", "chapter": "", "section": "", "page": 25}
+        assert store._match_filters(doc, {"page_min": 20, "page_max": 30}) is True
+        assert store._match_filters(doc, {"page_min": 30, "page_max": 40}) is False
+
+    def test_match_filters_empty(self):
+        """空过滤条件匹配所有"""
+        store = DocumentStore()
+        doc = {"content": "test", "source": "t.txt"}
+        assert store._match_filters(doc, {}) is True
+
+    def test_match_filters_partial_match(self):
+        """chapter 支持子字符串匹配"""
+        store = DocumentStore()
+        doc = {"content": "test", "source": "t.txt", "chapter": "第2章飞机座椅的结构与维修", "section": "", "page": 0}
+        assert store._match_filters(doc, {"chapter": "座椅"}) is True
+        assert store._match_filters(doc, {"chapter": "客舱"}) is False
