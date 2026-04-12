@@ -1,6 +1,5 @@
 """测试 STT 配置参数是否正确传递"""
 from unittest.mock import patch, MagicMock
-import pytest
 
 
 def test_recognizer_passes_max_sentence_silence():
@@ -30,5 +29,7 @@ def test_max_sentence_silence_config_override():
         import importlib
         import src.config
         importlib.reload(src.config)
-        assert src.config.config.NLS_MAX_SENTENCE_SILENCE == 2000
-        importlib.reload(src.config)
+        try:
+            assert src.config.config.NLS_MAX_SENTENCE_SILENCE == 2000
+        finally:
+            importlib.reload(src.config)
