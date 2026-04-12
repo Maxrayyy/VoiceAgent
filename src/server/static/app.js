@@ -46,6 +46,17 @@ const SessionState = {
 };
 let sessionState = SessionState.IDLE;
 
+// --- VAD 语音打断配置 ---
+const VAD_THRESHOLD_RATIO = 3.0;     // 音量超过噪声基线的倍数即触发
+const VAD_TRIGGER_FRAMES = 3;        // 连续超标帧数（约 150ms）
+const VAD_COOLDOWN_MS = 2000;        // 打断后冷却期（毫秒）
+const VAD_BASELINE_ALPHA = 0.05;     // 噪声基线平滑系数（越小越稳定）
+
+let vadNoiseBaseline = 2.0;          // 背景噪声基线（初始值）
+let vadConsecutiveFrames = 0;        // 连续超标帧计数
+let vadLastInterruptTime = 0;        // 上次打断时间
+let vadMonitoring = false;           // 是否正在 VAD 监测
+
 // STT 会话管理，防止过期的识别结果触发查询
 let sttSessionId = 0;
 let currentSttSession = 0;
@@ -347,6 +358,10 @@ function monitorMicLevel() {
         }
         const avg = sum / analyserDataArray.length;
         micVolumeLevel = Math.min(0.9, Math.max(avg / 60, 0.02));
+        // 非播报状态下更新噪声基线
+        if (sessionState !== SessionState.SPEAKING) {
+            vadNoiseBaseline += VAD_BASELINE_ALPHA * (avg - vadNoiseBaseline);
+        }
         if (isRecording) {
             requestAnimationFrame(sample);
         }
@@ -356,6 +371,7 @@ function monitorMicLevel() {
 
 function stopRecording(discard = false) {
     if (!isRecording) return;
+    stopVadMonitoring();
     isRecording = false;
     pendingStartCommand = false;
 
@@ -464,6 +480,10 @@ function handleMessage(msg) {
                 ttsBuffering = true;
                 ttsPreBuffer = [];
                 ttsPreBufferSamples = 0;
+                // 持续监听模式下启动 VAD 语音打断监测
+                if (recordMode === 'continuous' && isRecording) {
+                    startVadMonitoring();
+                }
             }
             setAiResponding(true);
             ensureAssistantStream();
@@ -488,6 +508,7 @@ function handleMessage(msg) {
         case 'tts_interrupted':
             // 后端确认打断，拦截后续残余音频
             ttsIgnore = true;
+            stopVadMonitoring();
             // 打断后根据录音状态决定：录音中返回 LISTENING，否则 IDLE
             sessionState = isRecording ? SessionState.LISTENING : SessionState.IDLE;
             setAiResponding(false);
@@ -739,6 +760,7 @@ function monitorTtsVolume() {
 
 function waitForTtsPlaybackEnd() {
     const onPlaybackDone = () => {
+        stopVadMonitoring();
         sessionState = SessionState.IDLE;
         setAiResponding(false);
         // 连续模式下：播放结束后自动恢复监听
@@ -797,6 +819,52 @@ function resetTtsPlayback() {
         ttsDataArray = null;
         ctx.close().catch(() => {});
     }
+}
+
+function startVadMonitoring() {
+    if (vadMonitoring || !analyserNode || !analyserDataArray) return;
+    vadMonitoring = true;
+    vadConsecutiveFrames = 0;
+    console.log('[VAD] 开始监测，噪声基线:', vadNoiseBaseline.toFixed(2));
+
+    const checkVad = () => {
+        if (!vadMonitoring || !aiResponding) {
+            vadMonitoring = false;
+            return;
+        }
+
+        analyserNode.getByteTimeDomainData(analyserDataArray);
+        let sum = 0;
+        for (let i = 0; i < analyserDataArray.length; i++) {
+            sum += Math.abs(analyserDataArray[i] - 128);
+        }
+        const avg = sum / analyserDataArray.length;
+        const threshold = Math.max(vadNoiseBaseline * VAD_THRESHOLD_RATIO, 5.0);
+
+        if (avg > threshold) {
+            vadConsecutiveFrames++;
+            if (vadConsecutiveFrames >= VAD_TRIGGER_FRAMES) {
+                const now = Date.now();
+                if (now - vadLastInterruptTime > VAD_COOLDOWN_MS) {
+                    console.log('[VAD] 触发打断，音量:', avg.toFixed(2), '阈值:', threshold.toFixed(2));
+                    vadLastInterruptTime = now;
+                    vadMonitoring = false;
+                    interrupt();
+                    return;
+                }
+            }
+        } else {
+            vadConsecutiveFrames = 0;
+        }
+
+        requestAnimationFrame(checkVad);
+    };
+    requestAnimationFrame(checkVad);
+}
+
+function stopVadMonitoring() {
+    vadMonitoring = false;
+    vadConsecutiveFrames = 0;
 }
 
 function interrupt() {
