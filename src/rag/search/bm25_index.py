@@ -8,6 +8,11 @@ from typing import Optional
 import jieba
 from rank_bm25 import BM25Okapi
 
+# 加载航空领域自定义词典
+_DICT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "aviation_terms.txt")
+if os.path.exists(_DICT_PATH):
+    jieba.load_userdict(_DICT_PATH)
+
 logger = logging.getLogger(__name__)
 
 
