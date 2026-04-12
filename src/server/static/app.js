@@ -555,11 +555,18 @@ function appendAssistantChunk(chunk) {
 function finalizeAssistantStream() {
     if (streamingAssistantEl) {
         const text = streamingAssistantText.trim();
-        streamingAssistantEl.remove();
+        const el = streamingAssistantEl;
         streamingAssistantEl = null;
         streamingAssistantText = '';
         if (text) {
-            pushLine(text, 'assistant');
+            // 仅更新数据，保留已有 DOM 元素，避免 innerHTML 清空导致页面闪烁
+            dialogueLines.push({ role: 'assistant', text });
+            if (dialogueLines.length > maxLines) {
+                dialogueLines = dialogueLines.slice(-maxLines);
+                renderLines();
+            }
+        } else {
+            el.remove();
         }
     }
 }

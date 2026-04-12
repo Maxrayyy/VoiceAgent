@@ -112,9 +112,9 @@ class VoiceChatPipeline:
                     logger.debug("TTS fed remaining %d chars", len(self._text_buffer))
                     self._text_buffer = ""
 
-                # 6. 完成 TTS 合成（阻塞等待）
+                # 6. 完成 TTS 合成（在线程池中执行，避免阻塞事件循环）
                 if on_audio_data:
-                    self.tts.finish()
+                    await asyncio.to_thread(self.tts.finish)
             else:
                 self._text_buffer = ""
 
