@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from typing import Callable, Optional
 
 import dashscope
@@ -50,6 +51,11 @@ class _TtsCallback(ResultCallback):
 class StreamingSynthesizer:
     """流式语音合成器，封装 CosyVoice 双向流式合成"""
 
+    # 飞机型号正则：字母前缀 + 3~4位数字 + 可选后缀（-CL, -NG, -800, -21B）
+    _AIRCRAFT_MODEL_RE = re.compile(
+        r'([A-Za-z])(\d{3,4})(?:[-—]([A-Za-z0-9]+))?'
+    )
+
     def __init__(
         self,
         model: Optional[str] = None,
@@ -59,6 +65,24 @@ class StreamingSynthesizer:
         self._voice = voice or config.TTS_VOICE
         self._synthesizer: Optional[SpeechSynthesizer] = None
         self._callback: Optional[_TtsCallback] = None
+
+    @classmethod
+    def _preprocess_for_tts(cls, text: str) -> str:
+        """预处理文本，将航空型号中的数字转为逐位朗读格式
+
+        例如：B737 → B 7 3 7，B737-NG → B 7 3 7 杠 NG
+        """
+        def _expand(m):
+            prefix = m.group(1)
+            digits = ' '.join(m.group(2))
+            suffix = m.group(3)
+            if suffix:
+                # 后缀字符也逐个朗读：800→8 0 0, NG→N G, 21B→2 1 B
+                suffix_expanded = ' '.join(suffix)
+                return f"{prefix} {digits} 杠 {suffix_expanded}"
+            return f"{prefix} {digits}"
+
+        return cls._AIRCRAFT_MODEL_RE.sub(_expand, text)
 
     def start(self, on_audio_data: Callable[[bytes], None]) -> None:
         """
@@ -86,6 +110,7 @@ class StreamingSynthesizer:
             text: 文本片段
         """
         if self._synthesizer and text:
+            text = self._preprocess_for_tts(text)
             self._synthesizer.streaming_call(text)
 
     def cancel(self) -> None:
