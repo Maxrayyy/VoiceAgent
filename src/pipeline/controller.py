@@ -3,6 +3,7 @@ import logging
 from typing import Callable, Optional
 
 from src.llm.generator import StreamingGenerator
+from src.rag.query_rewriter import QueryRewriter
 from src.rag.retriever import DocumentStore
 from src.tts.synthesizer import StreamingSynthesizer
 
@@ -10,10 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 class VoiceChatPipeline:
-    """语音问答流水线：STT → RAG → LLM(流式) → TTS(流式)"""
+    """语音问答流水线：STT → 查询改写 → RAG → LLM(流式) → TTS(流式)"""
 
     def __init__(self, document_store: Optional[DocumentStore] = None):
         self.rag = document_store
+        self.query_rewriter = QueryRewriter()
         self.llm = StreamingGenerator()
         self.tts = StreamingSynthesizer()
         self.history: list[dict] = []
@@ -50,19 +52,24 @@ class VoiceChatPipeline:
         """
         self._interrupted = False
 
-        # 1. RAG 检索
+        # 1. 查询改写（结合对话历史做指代消解和口语规范化）
+        rewritten_query = await self.query_rewriter.rewrite(query, self.history)
+        if rewritten_query != query:
+            logger.info("查询改写: '%s' → '%s'", query[:50], rewritten_query[:50])
+
+        # 2. RAG 检索（使用改写后的查询）
         context = []
         if self.rag and self.rag.count > 0:
-            context = self.rag.search(query, top_k=3)
-            logger.info("RAG retrieved %d documents for: %s", len(context), query[:50])
+            context = self.rag.search(rewritten_query, top_k=3)
+            logger.info("RAG retrieved %d documents for: %s", len(context), rewritten_query[:50])
             if on_rag_sources and context:
                 on_rag_sources(context)
 
-        # 2. 启动 TTS 合成器
+        # 3. 启动 TTS 合成器
         if on_audio_data:
             self.tts.start(on_audio_data)
 
-        # 3. LLM 流式生成 + TTS 流式合成（带文本缓冲）
+        # 4. LLM 流式生成 + TTS 流式合成（带文本缓冲）
         full_response = ""
         self._text_buffer = ""
         try:
@@ -99,19 +106,19 @@ class VoiceChatPipeline:
                 on_done()
 
             if not self._interrupted:
-                # 4. 发送剩余缓冲的文本
+                # 5. 发送剩余缓冲的文本
                 if on_audio_data and self._text_buffer:
                     self.tts.feed_text(self._text_buffer)
                     logger.debug("TTS fed remaining %d chars", len(self._text_buffer))
                     self._text_buffer = ""
 
-                # 5. 完成 TTS 合成（阻塞等待）
+                # 6. 完成 TTS 合成（阻塞等待）
                 if on_audio_data:
                     self.tts.finish()
             else:
                 self._text_buffer = ""
 
-        # 6. 更新对话历史
+        # 7. 更新对话历史
         if full_response and not self._interrupted:
             self.history.append({"role": "user", "content": query})
             self.history.append({"role": "assistant", "content": full_response})
