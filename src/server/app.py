@@ -157,10 +157,18 @@ async def websocket_endpoint(ws: WebSocket):
                     audio_buffer.append_sync(data)
 
                 def on_sources(sources):
+                    def format_source(s):
+                        """格式化来源展示：优先使用章节+页码"""
+                        if s.get("chapter"):
+                            section = f" §{s['section']}" if s.get("section") else ""
+                            page = f" (第{s['page']}页)" if s.get("page") else ""
+                            return f"{s['chapter']}{section}{page}"
+                        return s.get("source", "未知")
+
                     send_json_sync({
                         "type": "rag_sources",
                         "sources": [
-                            {"content": s["content"][:200], "source": s["source"], "score": s["score"]}
+                            {"content": s["content"][:200], "source": format_source(s), "score": s["score"]}
                             for s in sources
                         ],
                     })
