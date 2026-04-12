@@ -171,6 +171,7 @@ class StreamingRecognizer:
             enable_intermediate_result=True,
             enable_punctuation_prediction=True,
             enable_inverse_text_normalization=True,
+            ex={"max_sentence_silence": config.NLS_MAX_SENTENCE_SILENCE},
         )
 
     def feed_audio(self, audio_data: bytes) -> None:
