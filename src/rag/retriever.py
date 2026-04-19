@@ -8,7 +8,7 @@ import faiss
 import numpy as np
 
 from src.rag.search.bm25_index import BM25Index
-from src.rag.document_loader_v2 import load_documents
+from src.rag.document_loader import load_documents
 from src.rag.embeddings import EmbeddingClient
 from src.rag.search.reranker import Reranker
 

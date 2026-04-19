@@ -60,7 +60,7 @@ class VoiceChatPipeline:
         # 2. RAG 检索（使用改写后的查询）
         context = []
         if self.rag and self.rag.count > 0:
-            context = self.rag.search(rewritten_query, top_k=3)
+            context = self.rag.search(rewritten_query, top_k=5)
             logger.info("RAG retrieved %d documents for: %s", len(context), rewritten_query[:50])
             if on_rag_sources and context:
                 on_rag_sources(context)

@@ -1,7 +1,7 @@
 """元数据提取与过滤单元测试"""
 import pytest
 
-from src.rag.document_loader_v2 import load_txt_with_metadata
+from src.rag.document_loader import load_txt_with_metadata
 
 
 class TestMetadataExtraction:

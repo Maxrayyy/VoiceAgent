@@ -158,12 +158,13 @@ async def websocket_endpoint(ws: WebSocket):
 
                 def on_sources(sources):
                     def format_source(s):
-                        """格式化来源展示：优先使用章节+页码"""
+                        """格式化来源展示：文档名 + 章节页码"""
+                        name = s.get("source", "未知").replace(".txt", "")
                         if s.get("chapter"):
                             section = f" §{s['section']}" if s.get("section") else ""
                             page = f" (第{s['page']}页)" if s.get("page") else ""
-                            return f"{s['chapter']}{section}{page}"
-                        return s.get("source", "未知")
+                            return f"{name} - {s['chapter']}{section}{page}"
+                        return name
 
                     send_json_sync({
                         "type": "rag_sources",

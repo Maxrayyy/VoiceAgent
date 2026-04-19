@@ -78,8 +78,13 @@ class StreamingGenerator:
         if not context:
             return SYSTEM_PROMPT
 
+        def _format_ref_source(doc):
+            name = doc.get("source", "未知")
+            chapter = doc.get("chapter", "")
+            return f"{name} - {chapter}" if chapter else name
+
         refs = "\n\n".join(
-            f"【参考资料{i+1}】(来源: {doc.get('source', '未知')})\n{doc['content']}"
+            f"【参考资料{i+1}】(来源: {_format_ref_source(doc)})\n{doc['content']}"
             for i, doc in enumerate(context)
         )
 
