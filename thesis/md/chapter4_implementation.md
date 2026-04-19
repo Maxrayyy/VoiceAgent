@@ -47,19 +47,19 @@
 
 系统由浏览器前端、FastAPI 后端与阿里云服务三层构成，如图 4.1 所示。前端通过唯一 WebSocket 端点 `/ws` 双向通信；后端聚合 STT、RAG、LLM、TTS 由 Pipeline 串联；云服务只承担模型推理，索引与会话状态保存本地。
 
-![图 4.1 系统总体架构图](figures/fig_4_1_system_arch.png)
+![图 4.1 系统总体架构图](../figures/fig_4_1_system_arch.png)
 
 ### 4.1.3 模块划分与功能职责
 
 后端按功能划分为 5 个包，依赖关系如图 4.2 所示。`src/pipeline` 位于顶点，向下依赖 `src/stt`、`src/rag`、`src/llm`、`src/tts`；`src/server` 只做协议转换与会话管理。模块间仅通过公开类与 `asyncio` 接口交互。
 
-![图 4.2 模块划分与依赖图](figures/fig_4_2_module_deps.png)
+![图 4.2 模块划分与依赖图](../figures/fig_4_2_module_deps.png)
 
 ### 4.1.4 端到端处理流程
 
 一次语音问答的时序如图 4.3 所示：前端推送 16 kHz PCM；STT final 结果交给 Pipeline 依次执行查询改写、混合检索、LLM 流式生成与 TTS 流式合成；文本与音频通过 WebSocket 即时回推，形成"边生成边播放"的流式体验。
 
-![图 4.3 查询处理时序图](figures/fig_4_3_query_sequence.png)
+![图 4.3 查询处理时序图](../figures/fig_4_3_query_sequence.png)
 
 ## 4.2 RAG 检索模块实现
 

@@ -84,22 +84,27 @@ print(f'图片数: {imgs}')
 
 ```
 thesis/
-  00_abstract.md            # 摘要（中英文）+ 目录
-  chapter1_introduction.md  # 第一章 引言
-  chapter2_technologies.md  # 第二章 相关技术
-  chapter3_design.md        # 第三章 系统需求分析与设计
-  chapter4_implementation.md # 第四章 系统实现
-  chapter5_optimization.md  # 第五章 系统优化
-  chapter6_testing.md       # 第六章 系统测试与结果分析
-  chapter7_conclusion.md    # 第七章（含 "## 参考文献" 和 "## 致谢"）
-  figures/                  # 图片 + DOT 源
+  md/                         # 源 Markdown（人工编辑）
+    00_abstract.md              # 摘要（中英文）+ 目录
+    chapter1_introduction.md    # 第一章 引言
+    chapter2_technologies.md    # 第二章 相关技术
+    chapter3_design.md          # 第三章 系统需求分析与设计
+    chapter4_implementation.md  # 第四章 系统实现
+    chapter5_optimization.md    # 第五章 系统优化
+    chapter6_testing.md         # 第六章 系统测试与结果分析
+    chapter7_conclusion.md      # 第七章（含 "## 参考文献" 和 "## 致谢"）
+  figures/                    # 图片 + DOT 源（与 md/docx 同级）
     fig_3_1_usecase.png
     fig_3_2_four_layer.png
     fig_3_3_streaming_dataflow.png
     fig_4_1_system_arch.png
     fig_4_2_module_deps.png
     fig_4_3_query_sequence.png
+  docx/                       # 脚本生成输出
+    毕业论文.docx
 ```
+
+md 中图片引用路径：`![图 X.Y 标题](../figures/fig_X_Y_xxx.png)`（相对 md/ 目录的父级）。
 
 ## 常见问题排查
 

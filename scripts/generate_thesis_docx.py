@@ -62,6 +62,8 @@ CHAPTER_MAP = {
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 THESIS_DIR = os.path.join(BASE_DIR, 'thesis')
+MD_DIR = os.path.join(THESIS_DIR, 'md')
+DOCX_DIR = os.path.join(THESIS_DIR, 'docx')
 FIG_DIR = os.path.join(THESIS_DIR, 'figures')
 
 
@@ -651,7 +653,8 @@ def render_chapter_md(doc, filepath, chapter_num):
         if img_match:
             caption = img_match.group(1)
             img_rel_path = img_match.group(2)
-            img_path = os.path.join(THESIS_DIR, img_rel_path)
+            # 相对 md 文件目录解析
+            img_path = os.path.normpath(os.path.join(MD_DIR, img_rel_path))
             add_figure(doc, img_path, caption)
             i += 1
             continue
@@ -878,7 +881,7 @@ def main():
 
     add_cover_page(doc)
 
-    abstract_path = os.path.join(THESIS_DIR, '00_abstract.md')
+    abstract_path = os.path.join(MD_DIR, '00_abstract.md')
     cn_abstract, cn_keywords, en_abstract, en_keywords = parse_abstract_md(
         abstract_path)
 
@@ -901,18 +904,19 @@ def main():
         ('chapter7_conclusion.md', 7),
     ]
     for filename, ch_num in chapters:
-        filepath = os.path.join(THESIS_DIR, filename)
+        filepath = os.path.join(MD_DIR, filename)
         if os.path.exists(filepath):
             render_chapter_md(doc, filepath, ch_num)
 
-    ch7_path = os.path.join(THESIS_DIR, 'chapter7_conclusion.md')
+    ch7_path = os.path.join(MD_DIR, 'chapter7_conclusion.md')
     ref_text, ack_text = extract_references_and_acknowledgment(ch7_path)
     if ref_text:
         add_references(doc, ref_text)
     if ack_text:
         add_acknowledgment(doc, ack_text)
 
-    output_path = os.path.join(BASE_DIR, '毕业论文.docx')
+    os.makedirs(DOCX_DIR, exist_ok=True)
+    output_path = os.path.join(DOCX_DIR, '毕业论文.docx')
     doc.save(output_path)
     print(f'论文已生成：{output_path}')
 
