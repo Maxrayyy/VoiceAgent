@@ -1,0 +1,29 @@
+digraph sequence {
+	fontname="Microsoft YaHei" fontsize=11 rankdir=TB splines=polyline
+	node [fontname="Microsoft YaHei" fontsize=10 shape=box style=filled]
+	s1 [label="1. 用户语音 → 前端 AudioWorklet 采集" fillcolor="#FFE0B2"]
+	s2 [label="2. base64 PCM → WebSocket 上行" fillcolor="#B2EBF2"]
+	s3 [label="3. STT 流式识别 → Partial/Final 文本" fillcolor="#BBDEFB"]
+	s4 [label="4. 查询改写（结合历史）" fillcolor="#FFCCBC"]
+	s5 [label="5. RAG 混合检索 + RRF + Rerank → Top-3" fillcolor="#A5D6A7"]
+	s6 [label="6. LLM 流式生成（Qwen-Plus）" fillcolor="#FFAB91"]
+	s7 [label="7. 文本缓冲（标点或 ≥15 字 flush）" fillcolor="#FFF59D"]
+	s8 [label="8. TTS 流式合成（CosyVoice）" fillcolor="#F8BBD0"]
+	s9 [label="9. AudioBuffer 聚合 → WebSocket 下行" fillcolor="#B2EBF2"]
+	s10 [label="10. 前端预缓冲 1.5s → 播放" fillcolor="#FFE0B2"]
+	s1 -> s2
+	s2 -> s3
+	s3 -> s4
+	s4 -> s5
+	s5 -> s6
+	s6 -> s7
+	s7 -> s8
+	s8 -> s9
+	s9 -> s10
+	{
+		rank=same
+		p_llm [label="LLM 与 TTS 并行流水线" fillcolor="#FFF9C4" shape=note style=filled]
+	}
+	s6 -> p_llm [arrowhead=none style=dashed]
+	p_llm -> s8 [arrowhead=none style=dashed]
+}

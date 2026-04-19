@@ -1,0 +1,39 @@
+digraph four_layer {
+	fontname="Microsoft YaHei" fontsize=11 nodesep=0.4 rankdir=TB splines=ortho
+	node [fontname="Microsoft YaHei" fontsize=11 shape=box style="filled,rounded"]
+	subgraph cluster_pres {
+		fillcolor="#FFF4E5" fontname="Microsoft YaHei" fontsize=12 label="表示层（Presentation Layer）" style=filled
+		p1 [label="HTML/CSS 界面" fillcolor="#FFE0B2"]
+		p2 [label="Web Audio API" fillcolor="#FFE0B2"]
+		p3 [label="VAD 语音打断" fillcolor="#FFE0B2"]
+	}
+	subgraph cluster_comm {
+		fillcolor="#E8F5E9" fontname="Microsoft YaHei" fontsize=12 label="通信层（Communication Layer）" style=filled
+		c1 [label="WebSocket 全双工通道" fillcolor="#C8E6C9"]
+	}
+	subgraph cluster_biz {
+		fillcolor="#E3F2FD" fontname="Microsoft YaHei" fontsize=12 label="业务逻辑层（Business Logic Layer）" style=filled
+		b1 [label="STT 识别" fillcolor="#BBDEFB"]
+		b2 [label="RAG 检索" fillcolor="#BBDEFB"]
+		b3 [label="LLM 生成" fillcolor="#BBDEFB"]
+		b4 [label="TTS 合成" fillcolor="#BBDEFB"]
+		b5 [label="Pipeline 编排" fillcolor="#90CAF9"]
+	}
+	subgraph cluster_data {
+		fillcolor="#F3E5F5" fontname="Microsoft YaHei" fontsize=12 label="数据层（Data Layer）" style=filled
+		d1 [label="FAISS 向量索引" fillcolor="#E1BEE7"]
+		d2 [label="BM25 稀疏索引" fillcolor="#E1BEE7"]
+		d3 [label="文档元数据" fillcolor="#E1BEE7"]
+	}
+	p1 -> c1
+	p2 -> c1
+	p3 -> c1
+	c1 -> b5
+	b5 -> b1
+	b5 -> b2
+	b5 -> b3
+	b5 -> b4
+	b2 -> d1
+	b2 -> d2
+	b2 -> d3
+}

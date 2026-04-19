@@ -1,0 +1,22 @@
+digraph usecase {
+	fontname="Microsoft YaHei" fontsize=11 rankdir=LR
+	node [fillcolor="#E8F0FE" fontname="Microsoft YaHei" fontsize=11 shape=ellipse style=filled]
+	edge [fontname="Microsoft YaHei" fontsize=10]
+	user [label="维修技术人员" fillcolor=white fontsize=12 shape=plaintext style=""]
+	admin [label="系统管理员" fillcolor=white fontsize=12 shape=plaintext style=""]
+	subgraph cluster_sys {
+		fontname="Microsoft YaHei" fontsize=12 label="语音问答系统" style=dashed
+		uc1 [label="语音问答"]
+		uc2 [label="文本问答"]
+		uc3 [label="多轮追问"]
+		uc4 [label="语音打断"]
+		uc5 [label="知识库管理"]
+	}
+	user -> uc1
+	user -> uc2
+	user -> uc3
+	user -> uc4
+	admin -> uc5
+	uc3 -> uc1 [label=extend arrowhead=open style=dashed]
+	uc4 -> uc1 [label=extend arrowhead=open style=dashed]
+}

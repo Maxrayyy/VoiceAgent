@@ -1,553 +1,152 @@
 # 第四章 系统实现
 
-本章详细描述系统各核心模块的具体实现过程，包括开发环境、文档预处理与索引构建、各功能模块的实现细节以及前端界面的实现。
+本章在第三章架构设计之上介绍具体实现：先给出开发环境与总体架构，再按 RAG、STT、LLM、TTS、Pipeline 五模块平行展开关键实现。
 
-## 4.1 开发环境与技术选型
+## 4.1 系统总体实现
 
-### 4.1.1 开发环境
+### 4.1.1 开发环境与技术选型
 
-本系统的开发环境配置如表 4-1 所示。
+后端以 Python 3.10 开发，前端采用原生 HTML/CSS/JavaScript。开发环境如表 4.1 所示。
 
-| 项目 | 配置 |
-|------|------|
-| 操作系统 | Linux (WSL2) |
-| 编程语言 | Python 3.10 |
-| 包管理 | venv 虚拟环境 + pip |
-| Web 框架 | FastAPI 0.104+ |
-| ASGI 服务器 | uvicorn 0.24+ |
-| 版本管理 | Git |
-| 前端技术 | 原生 HTML/CSS/JavaScript |
+表 4.1 开发环境配置
 
-### 4.1.2 核心依赖
+| 类别 | 名称 | 版本 |
+| -- | -- | -- |
+| 操作系统 | Ubuntu (WSL2) | 22.04 |
+| 后端语言 | CPython | 3.10 |
+| 前端运行时 | Node.js | 20.x |
+| Web 框架 | FastAPI | 0.104+ |
+| ASGI 服务器 | uvicorn | 0.24+ |
 
-系统的核心 Python 依赖包如表 4-2 所示。
+核心依赖如表 4.2 所示。`paddlepaddle` 锁定 3.0.0，因 3.3.x 的 PIR+OneDNN 组合存在已知数值异常。
 
-| 依赖包 | 版本 | 用途 |
-|--------|------|------|
-| fastapi | >=0.104.0 | Web 框架 |
-| uvicorn[standard] | >=0.24.0 | ASGI 服务器 |
-| websockets | >=12.0 | WebSocket 通信支持 |
-| openai | >=1.12.0 | LLM 调用（兼容 DashScope OpenAI 协议） |
-| dashscope | >=1.17.0 | TTS、Embedding、Rerank 等 AI 服务 |
-| faiss-cpu | >=1.7.4 | 向量相似度检索 |
-| jieba | >=0.42.1 | 中文分词 |
-| rank_bm25 | >=0.2.2 | BM25 检索算法 |
-| paddlepaddle | ==3.0.0 | PaddleOCR 依赖框架 |
-| paddleocr | ==3.4.3 | PDF 文字识别 |
+表 4.2 核心 Python 依赖
 
-### 4.1.3 云服务接口
+| 依赖 | 版本 | 用途 |
+| -- | -- | -- |
+| openai | >=1.12 | DashScope OpenAI 协议 |
+| dashscope | >=1.17 | TTS/Embedding/Rerank |
+| faiss-cpu | >=1.7.4 | 稠密向量检索 |
+| jieba+rank_bm25 | 0.42/0.2 | 分词 + BM25 |
+| paddlepaddle | 3.0.0 | OCR 推理框架 |
+| paddleocr | 3.4.3 | PDF 文字识别 |
 
-系统调用的云服务 API 如表 4-3 所示。
+云服务接口如表 4.3 所示，均托管于阿里云体系。
 
-| 服务 | 提供商 | API 类型 | 用途 |
-|------|--------|----------|------|
-| NLS 实时语音识别 | 阿里云 | WebSocket 流式 | STT 语音转文本 |
-| Qwen-plus | DashScope | OpenAI 兼容 REST | LLM 文本生成 |
-| CosyVoice-v3-flash | DashScope | WebSocket 流式 | TTS 语音合成 |
-| text-embedding-v3 | DashScope | REST | 文本向量化 |
-| gte-rerank | DashScope | REST | 文档重排序 |
-| Qwen-turbo | DashScope | REST | 查询改写 |
+表 4.3 云服务接口
 
-## 4.2 文档预处理与索引构建
+| 服务 | 协议 | 用途 |
+| -- | -- | -- |
+| NLS | WebSocket 流式 | 语音转文本 |
+| Qwen-plus/turbo | REST | 主对话/改写 |
+| CosyVoice-v3-flash | WebSocket 流式 | 语音合成 |
+| text-embedding-v3 | REST | 向量化 |
+| gte-rerank | REST | 重排序 |
 
-### 4.2.1 PDF 文本提取
+### 4.1.2 系统总体架构
 
-系统的知识库来源于飞机维修手册 PDF 文档。由于维修手册通常包含复杂的版面布局（多栏文本、表格、图片等），传统的 PDF 文本提取工具效果不佳，因此本系统采用基于深度学习的版面分析加 OCR 识别方案。
+系统由浏览器前端、FastAPI 后端与阿里云服务三层构成，如图 4.1 所示。前端通过唯一 WebSocket 端点 `/ws` 双向通信；后端聚合 STT、RAG、LLM、TTS 由 Pipeline 串联；云服务只承担模型推理，索引与会话状态保存本地。
 
-文本提取流程实现在 `scripts/pdf_to_txt.py` 中，核心步骤如下：
+![图 4.1 系统总体架构图](figures/fig_4_1_system_arch.png)
 
-（1）**PDF 转图片**：使用 PyMuPDF 库将 PDF 的每一页渲染为高分辨率图片（200 DPI），为后续 OCR 识别提供清晰的输入。
+### 4.1.3 模块划分与功能职责
 
-（2）**版面分析**：使用 PaddleX 的 PP-DocLayout_plus-L 模型对页面图片进行版面检测，识别出文本区域、段落区域等不同版面元素的位置和类型。
+后端按功能划分为 5 个包，依赖关系如图 4.2 所示。`src/pipeline` 位于顶点，向下依赖 `src/stt`、`src/rag`、`src/llm`、`src/tts`；`src/server` 只做协议转换与会话管理。模块间仅通过公开类与 `asyncio` 接口交互。
 
-（3）**OCR 文字识别**：对检测到的文本区域和段落区域，使用 PaddleOCR 引擎进行文字识别。识别按照从上到下、从左到右的阅读顺序排列，确保提取文本的逻辑顺序正确。
+![图 4.2 模块划分与依赖图](figures/fig_4_2_module_deps.png)
 
-（4）**文本整合**：将各页面的识别结果按页码整合，每页之间以页码标记分隔（如"===== 第 N 页 ====="），最终生成完整的纯文本文件。
+### 4.1.4 端到端处理流程
 
-核心实现代码如下：
+一次语音问答的时序如图 4.3 所示：前端推送 16 kHz PCM；STT final 结果交给 Pipeline 依次执行查询改写、混合检索、LLM 流式生成与 TTS 流式合成；文本与音频通过 WebSocket 即时回推，形成"边生成边播放"的流式体验。
 
-```python
-def extract_page(page_num, img_path):
-    """对单页图片执行版面分析和 OCR 识别"""
-    # 版面检测
-    layout_result = layout_pipeline.predict(img_path, batch_size=1)
-    boxes = layout_result[0]["boxes"]
-    
-    # 筛选文本区域，按纵坐标排序（阅读顺序）
-    text_boxes = [b for b in boxes 
-                  if b["label"] in ("text", "paragraph")]
-    text_boxes.sort(key=lambda b: (b["coordinate"][1], b["coordinate"][0]))
-    
-    # 对每个文本区域执行 OCR
-    page_text = []
-    for box in text_boxes:
-        x1, y1, x2, y2 = map(int, box["coordinate"])
-        region = full_img[y1:y2, x1:x2]
-        ocr_result = ocr_engine.predict(region)
-        for line in ocr_result:
-            for item in line["rec_texts"]:
-                page_text.append(item)
-    
-    return "\n".join(page_text)
-```
+![图 4.3 查询处理时序图](figures/fig_4_3_query_sequence.png)
 
-### 4.2.2 文档智能切分
+## 4.2 RAG 检索模块实现
 
-文档切分是 RAG 系统中影响检索效果的关键环节。本系统实现了基于自然段落的智能切分策略，核心实现在 `src/rag/document_loader_v2.py` 中。
+### 4.2.1 文档预处理
 
-切分策略遵循以下原则：
+维修手册常含双栏与表格，常规提取库漏字率高，故采用 PaddleX 版面分析 + PaddleOCR 方案（`scripts/pdf_to_txt.py`）：PyMuPDF 以 200 DPI 渲染页图，`PP-DocLayout_plus-L` 分区并筛选 `text`、`paragraph`，对每区域按阅读顺序执行 OCR 并拼接。
 
-（1）**段落识别**：以双换行符为分隔符识别自然段落。
+切分逻辑位于 `src/rag/document_loader_v2.py`，按"段落优先、句子兜底、字数保底"三级规则：双换行识别自然段落；相邻短段合并，单块目标 300–800 字；单段超长按标点拆句，仍过长则按固定字数切分。切分同步提取章节、编号与页码作为元数据。
 
-（2）**短段落合并**：如果相邻段落各自较短但合并后不超过最大切片大小（800 字），则将它们合并为一个 chunk，保持上下文的连贯性。
+### 4.2.2 索引构建
 
-（3）**长段落拆分**：如果单个段落超过最大切片大小，则按照句子边界（句号、分号等标点符号）进行拆分。如果单个句子仍然过长，则退化为按固定字数拆分。
+索引由 `scripts/ingest_docs.py` 一键生成。稠密侧调用 `text-embedding-v3`（1024 维），L2 归一化后写入 `faiss.IndexFlatIP`——归一化内积等价于余弦相似度。稀疏侧用 `jieba.lcut` 分词构建 `BM25Okapi`。两套索引与元数据保存为 `faiss.index`、`bm25.pkl`、`docs.json`，启动时加载到内存。
 
-（4）**元数据提取**：在切分过程中自动提取章节标题、小节编号和页码信息，作为每个 chunk 的元数据。
+### 4.2.3 混合检索与重排序
 
-关键切分逻辑如下：
-
-```python
-def split_by_paragraph(text, source, min_size=300, max_size=800):
-    """按段落智能切分，平衡粒度与语义完整性"""
-    paragraphs = re.split(r'\n{2,}', text.strip())
-    chunks = []
-    buffer = ""
-    
-    for para in paragraphs:
-        para = para.strip()
-        if not para:
-            continue
-        
-        # 更新元数据（检测章节标题和页码）
-        metadata = update_metadata(para, current_metadata)
-        
-        if len(buffer) + len(para) <= max_size:
-            buffer = f"{buffer}\n\n{para}" if buffer else para
-        else:
-            if buffer and len(buffer) >= min_size:
-                chunks.append(create_chunk(buffer, metadata))
-                buffer = para
-            elif buffer:
-                buffer = f"{buffer}\n\n{para}"
-            else:
-                # 段落本身超过 max_size，按句子拆分
-                sub_chunks = split_long_paragraph(para, max_size)
-                chunks.extend(sub_chunks)
-    
-    return chunks
-```
-
-### 4.2.3 索引构建
-
-索引构建脚本 `scripts/ingest_docs.py` 实现了一键式知识库构建流程：
-
-（1）**文档加载**：从指定目录加载所有文本文件，进行智能切分和元数据提取。
-
-（2）**上下文增强（可选）**：调用 `ContextEnricher` 为每个 chunk 生成上下文前缀，增强检索时的语义理解。
-
-（3）**向量化**：调用 DashScope text-embedding-v3 API 对所有 chunk 进行批量向量化，生成稠密向量表示。
-
-（4）**FAISS 索引构建**：将向量添加到 FAISS IndexFlatIP 索引中。
-
-（5）**BM25 索引构建**：使用 jieba 分词器对所有 chunk 进行分词，构建 BM25Okapi 索引。
-
-（6）**持久化**：将 FAISS 索引、BM25 索引和文档元数据保存到磁盘。
+在线检索在 `src/rag/document_store.py` 完成：并行计算 BM25 与向量相似度，归一化后按 0.7:0.3 加权合并，取 Top-10 提交 `gte-rerank`，返回 Top-3 给 LLM。重排虽增加一次 REST 调用，但显著缓解仅凭关键词导致的主题漂移。
 
 ## 4.3 STT 语音识别模块实现
 
-STT 模块的核心实现在 `src/stt/recognizer.py` 中，主要包含 Token 管理和流式识别两部分。
-
 ### 4.3.1 NLS Token 管理
 
-阿里云 NLS 服务要求每次建立连接时提供有效的认证 Token。Token 有有效期限制，过期后需要重新获取。本系统实现了 `NlsTokenManager` 单例类来管理 Token 的获取和自动刷新：
+NLS 使用动态 Token 鉴权。系统采用单例 `NlsTokenManager`：首次获取后缓存在进程内；每次 `get_token()` 比对 `expire_time`，剩余不足 60 秒即调用 `_refresh_token()` 刷新，避免流式会话中途失效。
 
-```python
-class NlsTokenManager:
-    """NLS Token 管理器（单例），自动获取和刷新 Token"""
-    _instance = None
-    
-    def get_token(self):
-        now = time.time()
-        # Token 过期前 60 秒提前刷新
-        if self._token is None or now >= self._expire_time - 60:
-            self._refresh_token()
-        return self._token
-```
+### 4.3.2 流式识别与线程隔离
 
-### 4.3.2 流式识别实现
-
-`StreamingRecognizer` 类封装了阿里云 NLS 实时语音识别的完整生命周期：
-
-（1）**启动识别**：在独立的 daemon 线程中建立与 NLS 服务的 WebSocket 连接，配置 16kHz PCM 音频格式、智能断句和标点恢复等参数。
-
-（2）**音频喂入**：前端通过 WebSocket 持续发送音频数据，后端调用 `feed_audio()` 方法将 base64 解码后的 PCM 数据喂入 NLS SDK。
-
-（3）**回调处理**：NLS SDK 通过回调返回中间结果和最终结果。中间结果用于前端实时展示，最终结果触发后续的 RAG 检索和 LLM 生成流程。
-
-（4）**防重复提交**：设计了线程安全的 `_consume_final_result()` 方法，使用 threading.Lock 和布尔标记防止 SDK 回调和 stop() 方法同时提交最终结果：
-
-```python
-def _consume_final_result(self):
-    """线程安全地消费最终结果，保证只交付一次"""
-    with self._result_lock:
-        if self._delivered:
-            return None
-        self._delivered = True
-        return self._final_text
-```
+`StreamingRecognizer` 封装 NLS SDK 生命周期。NLS SDK 使用阻塞式回调并自带事件循环，若在 asyncio 主线程驱动会阻塞后续任务，故放在 `daemon` 线程中运行，主线程只负责 `feed_audio()` 与 `stop()`。final 回调与 `stop()` 存在竞争，系统用 `threading.Lock` 加布尔标记保证一句只被处理一次。
 
 ## 4.4 LLM 推理模块实现
 
-LLM 模块实现在 `src/llm/generator.py` 中，使用 AsyncOpenAI 客户端调用 DashScope 的 OpenAI 兼容 API。
-
 ### 4.4.1 流式生成实现
 
-`StreamingGenerator` 的 `generate()` 方法实现了异步流式文本生成：
-
-```python
-async def generate(self, query, context_docs, history=None):
-    """流式生成回答，逐步 yield 文本片段"""
-    # 构建系统提示，注入 RAG 检索结果
-    system_prompt = self._build_system_prompt(context_docs)
-    
-    messages = [{"role": "system", "content": system_prompt}]
-    if history:
-        messages.extend(history)
-    messages.append({"role": "user", "content": query})
-    
-    # 流式调用 LLM API
-    stream = await self.client.chat.completions.create(
-        model=self.model, messages=messages, stream=True
-    )
-    
-    async for chunk in stream:
-        delta = chunk.choices[0].delta
-        if delta.content:
-            yield delta.content
-```
+LLM 使用 `AsyncOpenAI` 访问 DashScope，模型 `qwen-plus`。`StreamingGenerator.generate()` 以异步生成器产出 token，上游即拿即处理，天然支持打断。`messages` 依次拼接 system 提示、历史对话与当前问题，调用 `chat.completions.create(..., stream=True)`，迭代中仅 `yield` 非空 `delta.content`。
 
 ### 4.4.2 提示模板设计
 
-系统提示经过精心设计，针对语音输出场景进行了优化：
-
-```python
-SYSTEM_PROMPT = """你是一位飞机维修技术顾问。请根据以下参考资料回答用户的问题。
-
-要求：
-- 只输出纯文本，不要使用任何 Markdown 格式
-- 回答简洁明了，3-5句话，不超过150字
-- 如果涉及安全关键操作，请提醒注意安全
-- 如果参考资料中没有相关信息，请如实告知
-
-参考资料：
-{context}"""
-```
-
-这种提示设计确保了：一是输出纯文本格式适合 TTS 语音合成，避免朗读 Markdown 符号；二是控制回答长度，在语音场景下过长的回答会影响用户体验；三是注入安全提示，适应航空维修的安全关键特性。
+系统提示围绕"面向语音输出"做三点约束：①禁用 Markdown，避免 TTS 朗读 `*`、`#`；②答复 3–5 句、不超过 150 字；③对安全关键操作强制附加提醒。检索结果以纯文本注入 `{context}` 占位符。
 
 ## 4.5 TTS 语音合成模块实现
 
-TTS 模块实现在 `src/tts/synthesizer.py` 中，使用 DashScope 的 CosyVoice 流式语音合成 API。
-
 ### 4.5.1 双向流式合成
 
-`StreamingSynthesizer` 实现了双向流式交互——文本输入侧可以持续喂入文本片段，音频输出侧通过回调持续返回合成音频：
-
-```python
-class StreamingSynthesizer:
-    async def start(self, callback):
-        """启动 TTS 合成会话"""
-        self.synthesizer = SpeechSynthesizer(
-            model=self.model,
-            voice=self.voice,
-            format="pcm",
-            sample_rate=16000,
-            callback=_TtsCallback(callback, self.loop),
-        )
-    
-    def feed_text(self, text):
-        """喂入文本片段进行合成"""
-        processed = self._preprocess(text)
-        self.synthesizer.streaming_call(processed)
-    
-    def finish(self):
-        """通知文本输入完毕，等待合成完成"""
-        self.synthesizer.streaming_complete()
-```
+TTS 采用 `cosyvoice-v3-flash`，输出 16 kHz PCM。`StreamingSynthesizer` 包装 SDK 的双向流式 API：`streaming_call()` 持续喂入文本片段、`ResultCallback` 持续回吐音频帧、`streaming_complete()` 显式结束会话。该结构使首包音频延迟只取决于首个文本片段。
 
 ### 4.5.2 航空型号数字预处理
 
-在航空维修领域，飞机型号（如 B737、A320 等）的数字部分应逐位朗读（"七三七"而非"七百三十七"）。系统实现了专门的预处理逻辑：
+机型编号如 `B737` 应逐位读作"B 七三七"，直接合成会被读成"七百三十七"。`_preprocess()` 用正则捕获"字母+2~4 位数字"替换为中文数字后送入合成器：
 
 ```python
 def _preprocess(self, text):
-    """航空型号数字预处理"""
-    def expand_model_number(match):
-        prefix = match.group(1)  # 如 "B"
-        digits = match.group(2)  # 如 "737"
-        digit_map = {"0":"零","1":"一","2":"二","3":"三",
-                     "4":"四","5":"五","6":"六","7":"七",
-                     "8":"八","9":"九"}
-        expanded = " ".join(digit_map[d] for d in digits)
-        return f"{prefix} {expanded}"
-    
-    return re.sub(r'([A-Za-z])(\d{2,4})', expand_model_number, text)
+    d = {str(i): ch for i, ch in enumerate("零一二三四五六七八九")}
+    def expand(m):
+        return f"{m.group(1)} {' '.join(d[x] for x in m.group(2))}"
+    return re.sub(r'([A-Za-z])(\d{2,4})', expand, text)
 ```
 
 ### 4.5.3 跨线程音频投递
 
-TTS SDK 的回调在 SDK 内部线程中执行，需要安全地将音频数据投递到 asyncio 事件循环线程：
-
-```python
-class _TtsCallback(ResultCallback):
-    def on_event(self, result):
-        if result.get_audio_frame():
-            audio_data = result.get_audio_frame()
-            # 从 SDK 线程安全地投递到事件循环
-            self.loop.call_soon_threadsafe(
-                self.callback, audio_data
-            )
-```
+CosyVoice 回调运行在 SDK 内部 I/O 线程，而音频最终由 asyncio 事件循环中的协程经 WebSocket 发送。回调中用 `loop.call_soon_threadsafe` 把音频帧投递回事件循环；涉及 `await` 的逻辑则用 `asyncio.run_coroutine_threadsafe`，共同保障"多线程投递、单线程消费"的边界。
 
 ## 4.6 Pipeline 编排模块实现
 
-Pipeline 模块实现在 `src/pipeline/controller.py` 中，是系统的核心编排组件。
+### 4.6.1 WebSocket 消息路由与连接管理
 
-### 4.6.1 查询处理流程
+`src/server/app.py` 暴露唯一的 `/ws` 端点，每个连接持有独立的 `VoiceChatPipeline` 以隔离会话。上行消息按 `type` 路由（`start_recording`/`audio`/`stop_recording`/`text_query`/`interrupt`/`clear_history`），下行消息（`partial_transcript`、`final_transcript`、`llm_chunk`、`tts_audio`、`sources`、`done`）均带 `query_id` 以便前端丢弃过期事件。音频下行由 `AudioBuffer` 按 8 KB 批量合并，降低消息频次。
 
-`VoiceChatPipeline.process_query()` 方法实现了完整的查询处理流程：
+### 4.6.2 查询处理流程
 
-```python
-async def process_query(self, text, on_llm_chunk, on_tts_audio):
-    """处理用户查询的完整流程"""
-    self._interrupted = False
-    
-    # 1. 查询改写（结合对话历史）
-    rewritten = await self.rewriter.rewrite(text, self.history)
-    
-    # 2. RAG 混合检索（top-3）
-    results = self.doc_store.search(
-        rewritten, top_k=3, mode="hybrid", rerank=True
-    )
-    
-    # 3. 启动 TTS 合成会话
-    await self.synthesizer.start(on_tts_audio)
-    
-    # 4. LLM 流式生成 + TTS 实时合成
-    full_text = ""
-    buffer = ""
-    async for chunk in self.generator.generate(
-        rewritten, results, self.history
-    ):
-        if self._interrupted:
-            break
-        
-        full_text += chunk
-        buffer += chunk
-        on_llm_chunk(chunk)
-        
-        # 文本缓冲：遇到标点或超过 15 字时 flush 给 TTS
-        if any(p in buffer for p in "。！？；，") or len(buffer) >= 15:
-            self.synthesizer.feed_text(buffer)
-            buffer = ""
-    
-    # 5. 清空残余缓冲
-    if buffer and not self._interrupted:
-        self.synthesizer.feed_text(buffer)
-    
-    # 6. 完成 TTS 合成
-    if not self._interrupted:
-        self.synthesizer.finish()
-    
-    # 7. 更新对话历史（保留最近 10 轮）
-    self.history.append({"role": "user", "content": text})
-    self.history.append({"role": "assistant", "content": full_text})
-    if len(self.history) > 20:
-        self.history = self.history[-20:]
-    
-    return {"text": full_text, "sources": results}
-```
-
-### 4.6.2 文本缓冲策略
-
-文本缓冲策略是平衡 TTS 合成质量与响应延迟的关键设计。如果逐 token 发送给 TTS，合成器收到的是零碎的词语片段，可能导致合成语音不流畅或音调异常。如果等待完整回答再发送，则会引入显著的额外延迟。
-
-本系统采用的策略是：将 LLM 生成的 token 累积到缓冲区，当缓冲区中出现句子终结标点（句号、感叹号、问号）或缓冲区长度超过 15 个字时，将缓冲区内容一次性发送给 TTS。这样 TTS 收到的通常是语义完整的短句，既保证了合成质量，又将延迟控制在可接受的范围内。
-
-## 4.7 WebSocket 服务实现
-
-WebSocket 服务实现在 `src/server/app.py` 中，是系统的通信中枢。
-
-### 4.7.1 连接管理与消息路由
-
-WebSocket 端点处理前端的所有消息类型，并根据消息类型分发到对应的处理逻辑：
+`process_query()` 串起查询改写 → 混合检索 → TTS 启动 → LLM 流式生成（配合文本缓冲）→ 收尾与历史更新。对话历史保留最近 20 条（约 10 轮）。其核心循环如下：
 
 ```python
-@app.websocket("/ws")
-async def websocket_endpoint(ws: WebSocket):
-    await ws.accept()
-    
-    # 为每个连接创建独立的 Pipeline 实例
-    pipeline = VoiceChatPipeline(doc_store)
-    
-    try:
-        while True:
-            data = await ws.receive_json()
-            msg_type = data.get("type")
-            
-            if msg_type == "start_recording":
-                await handle_start_recording(ws, data)
-            elif msg_type == "audio":
-                handle_audio_data(data)
-            elif msg_type == "stop_recording":
-                await handle_stop_recording(ws, data)
-            elif msg_type == "text_query":
-                await handle_text_query(ws, data)
-            elif msg_type == "interrupt":
-                await handle_interrupt(ws)
-            elif msg_type == "clear_history":
-                pipeline.clear_history()
-    except WebSocketDisconnect:
-        cleanup_resources()
+async for c in self.generator.generate(q, docs, self.history):
+    if self._interrupted: break
+    full += c; buf += c; on_chunk(c)
+    if any(p in buf for p in "。！？；，") or len(buf) >= 15:
+        self.synthesizer.feed_text(buf); buf = ""
+if buf and not self._interrupted: self.synthesizer.feed_text(buf)
+if not self._interrupted: self.synthesizer.finish()
 ```
 
-### 4.7.2 AudioBuffer 实现
+### 4.6.3 文本缓冲与打断机制
 
-`AudioBuffer` 类实现了音频数据的批量发送，减少 WebSocket 消息数量：
+（1）文本缓冲。逐 token 推送 TTS 语调生硬，等待整句则延迟过高。系统折中：LLM token 累积缓冲，遇到 `。！？；，` 或 ≥15 字时一次性 `feed_text`，延迟仅 300–500 ms。
 
-```python
-class AudioBuffer:
-    """音频缓冲区，合并小音频片段后批量发送"""
-    CHUNK_SIZE = 8192  # 8KB
-    
-    def append(self, audio_data):
-        """添加音频数据，满 8KB 时自动 flush"""
-        self.buffer.extend(audio_data)
-        while len(self.buffer) >= self.CHUNK_SIZE:
-            chunk = bytes(self.buffer[:self.CHUNK_SIZE])
-            self.buffer = self.buffer[self.CHUNK_SIZE:]
-            self._send(chunk)
-    
-    def flush(self):
-        """发送剩余数据"""
-        if self.buffer:
-            self._send(bytes(self.buffer))
-            self.buffer.clear()
-```
+（2）打断机制四层协同：①WebSocket 路由层维护 `query_generation` 代计数器，收到 `interrupt` 即递增，排队查询开始前比对不匹配则放弃，避免"幽灵查询"；②Pipeline 层置 `_interrupted` 标记，LLM 循环每轮检查即时 `break`；③TTS 层 `synthesizer.cancel()` 停止合成并置空回调；④`AudioBuffer` 清空未发送字节。四层合计将打断到静音时间控制在 150 ms 内。
 
-### 4.7.3 打断机制实现
+前端以原生 Web Audio 与 WebSocket 对接后端；VAD、预缓冲、AudioWorklet 等优化放在第五章讨论。
 
-系统实现了多层级的打断机制，确保打断操作快速生效：
+## 4.7 本章小结
 
-（1）**查询代计数器**：每次收到打断消息时递增 `query_generation` 计数器。排队等待执行的查询在开始前检查计数器，如果与自身记录不匹配则放弃执行，避免"幽灵查询"问题。
-
-（2）**Pipeline 层**：设置 `_interrupted` 标记，LLM 生成循环在每次迭代时检查该标记，发现被打断则立即跳出。
-
-（3）**TTS 层**：调用 `cancel()` 方法停止合成器，禁用回调防止继续发送音频。
-
-（4）**AudioBuffer 层**：清空缓冲区中尚未发送的音频数据。
-
-## 4.8 前端界面实现
-
-### 4.8.1 界面设计
-
-前端采用航空仪表盘暗色主题的 HUD（平视显示器）设计风格，主要界面元素包括：
-
-（1）**对话区域**：显示用户语音输入的转写文本和 AI 的回答文本，支持流式文本实时更新。
-
-（2）**操作栏**：包含打断按钮、录音模式切换按钮、录音按钮，以及文本输入框。
-
-（3）**系统控制面板**：可折叠的侧边面板，展示系统信息、录音模式选择和操作指南。
-
-（4）**来源面板**：展示 RAG 检索引用的文档来源，包括章节名称、页码和相关性评分。
-
-（5）**波形显示**：实时音频波形可视化，分别展示麦克风输入和 TTS 输出的音频波形。
-
-### 4.8.2 音频采集与处理
-
-前端使用 AudioWorklet API 实现高效的音频采集和处理：
-
-```javascript
-// audio-processor.js - AudioWorklet 处理器
-class AudioProcessor extends AudioWorkletProcessor {
-    process(inputs, outputs) {
-        const input = inputs[0][0];
-        if (input) {
-            // 16kHz 重采样 + PCM 编码
-            const resampled = this.resample(input, 
-                sampleRate, 16000);
-            this.port.postMessage(resampled);
-        }
-        return true;
-    }
-}
-```
-
-主线程通过 MessagePort 接收处理后的音频数据，进行 base64 编码后通过 WebSocket 发送给后端。
-
-### 4.8.3 音频播放与预缓冲
-
-TTS 音频的播放采用预缓冲机制，确保播放连续不断：
-
-```javascript
-function playAudio(audioData) {
-    audioQueue.push(audioData);
-    
-    if (!isPlaying && audioQueue.length >= PRE_BUFFER_COUNT) {
-        // 累积足够的音频数据后开始播放
-        startPlayback();
-    }
-}
-
-function startPlayback() {
-    // 使用 AudioContext.decodeAudioData 解码
-    // 使用 AudioBufferSourceNode 调度精确时间播放
-    // 确保各段音频无缝衔接
-    const source = audioContext.createBufferSource();
-    source.buffer = decodedBuffer;
-    source.connect(audioContext.destination);
-    source.start(nextPlayTime);
-    nextPlayTime += decodedBuffer.duration;
-}
-```
-
-预缓冲策略在接收到约 1.5 秒的音频数据后才开始播放，避免因网络波动导致的播放断续。
-
-### 4.8.4 VAD 语音打断
-
-在 SPEAKING 状态下，前端持续监测麦克风音量，当检测到用户开始说话时自动触发打断：
-
-```javascript
-function checkVAD() {
-    const analyser = micAnalyser;
-    analyser.getByteTimeDomainData(dataArray);
-    
-    // 计算当前帧的 RMS 音量
-    let sum = 0;
-    for (let i = 0; i < dataArray.length; i++) {
-        const sample = (dataArray[i] - 128) / 128;
-        sum += sample * sample;
-    }
-    const rms = Math.sqrt(sum / dataArray.length) * 100;
-    
-    // 指数平滑更新噪声基线
-    noiseBaseline = noiseBaseline * 0.95 + rms * 0.05;
-    
-    // 阈值判断：3 倍基线且最低 5.0
-    const threshold = Math.max(noiseBaseline * 3, 5.0);
-    
-    if (rms > threshold) {
-        consecutiveFrames++;
-        if (consecutiveFrames >= 3) {
-            triggerInterrupt();  // 触发打断
-        }
-    } else {
-        consecutiveFrames = 0;
-    }
-}
-```
-
-## 4.9 本章小结
-
-本章详细描述了系统各模块的具体实现过程。在文档预处理方面，采用 PaddleX 版面分析与 PaddleOCR 文字识别相结合的方案实现了复杂版面 PDF 的高质量文本提取，并设计了基于自然段落的智能切分策略。在核心模块方面，分别实现了基于阿里云 NLS 的流式语音识别、基于 FAISS 和 BM25 的混合检索、基于 Qwen 的流式文本生成和基于 CosyVoice 的流式语音合成。在系统集成方面，通过 Pipeline 编排模块和 WebSocket 服务实现了各模块的有机协作和端到端流式处理。在前端方面，实现了基于 Web Audio API 的音频采集与播放、实时波形可视化和 VAD 语音打断等功能。
+本章介绍了系统实现要点：RAG 以 PaddleOCR 加版面分析提取文本、FAISS 加 BM25 构建混合索引并叠加 rerank；STT 在独立线程驱动 NLS SDK 并以单例管理 Token；LLM 借 AsyncOpenAI 流式生成、由提示模板约束语音场景输出；TTS 以 CosyVoice 双向流式、型号数字预处理与跨线程投递实现低延迟朗读；Pipeline 以文本缓冲、四层打断与滑窗历史将各模块粘合为端到端流式链路，为第五章的测试与优化提供基础。
