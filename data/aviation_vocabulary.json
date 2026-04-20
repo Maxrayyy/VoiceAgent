@@ -1,0 +1,1946 @@
+[
+  {
+    "text": "B737",
+    "weight": 4
+  },
+  {
+    "text": "B737-CL",
+    "weight": 4
+  },
+  {
+    "text": "B737-NG",
+    "weight": 4
+  },
+  {
+    "text": "B747",
+    "weight": 4
+  },
+  {
+    "text": "B757",
+    "weight": 4
+  },
+  {
+    "text": "B767",
+    "weight": 4
+  },
+  {
+    "text": "B777",
+    "weight": 4
+  },
+  {
+    "text": "B777-21B",
+    "weight": 4
+  },
+  {
+    "text": "B787",
+    "weight": 4
+  },
+  {
+    "text": "A300",
+    "weight": 4
+  },
+  {
+    "text": "A310",
+    "weight": 4
+  },
+  {
+    "text": "A318",
+    "weight": 4
+  },
+  {
+    "text": "A319",
+    "weight": 4
+  },
+  {
+    "text": "A320",
+    "weight": 4
+  },
+  {
+    "text": "A321",
+    "weight": 4
+  },
+  {
+    "text": "A330",
+    "weight": 4
+  },
+  {
+    "text": "A340",
+    "weight": 4
+  },
+  {
+    "text": "A350",
+    "weight": 4
+  },
+  {
+    "text": "A380",
+    "weight": 4
+  },
+  {
+    "text": "起落架",
+    "weight": 4
+  },
+  {
+    "text": "减震支柱",
+    "weight": 4
+  },
+  {
+    "text": "密封舱壁",
+    "weight": 4
+  },
+  {
+    "text": "座椅导轨",
+    "weight": 4
+  },
+  {
+    "text": "加强框",
+    "weight": 4
+  },
+  {
+    "text": "隔框",
+    "weight": 4
+  },
+  {
+    "text": "长桁",
+    "weight": 4
+  },
+  {
+    "text": "蒙皮",
+    "weight": 4
+  },
+  {
+    "text": "机身横截面",
+    "weight": 4
+  },
+  {
+    "text": "客舱隔墙",
+    "weight": 4
+  },
+  {
+    "text": "前客舱隔墙",
+    "weight": 4
+  },
+  {
+    "text": "后密封舱壁",
+    "weight": 4
+  },
+  {
+    "text": "天线罩舱壁",
+    "weight": 4
+  },
+  {
+    "text": "舷窗",
+    "weight": 4
+  },
+  {
+    "text": "舱门",
+    "weight": 4
+  },
+  {
+    "text": "登机门",
+    "weight": 4
+  },
+  {
+    "text": "勤务门",
+    "weight": 4
+  },
+  {
+    "text": "应急出口",
+    "weight": 4
+  },
+  {
+    "text": "地板结构",
+    "weight": 4
+  },
+  {
+    "text": "横梁",
+    "weight": 4
+  },
+  {
+    "text": "纵梁",
+    "weight": 4
+  },
+  {
+    "text": "隔离层",
+    "weight": 4
+  },
+  {
+    "text": "隔热棉",
+    "weight": 4
+  },
+  {
+    "text": "吊装连接杆",
+    "weight": 4
+  },
+  {
+    "text": "客舱",
+    "weight": 4
+  },
+  {
+    "text": "货舱",
+    "weight": 4
+  },
+  {
+    "text": "驾驶舱",
+    "weight": 4
+  },
+  {
+    "text": "头等舱",
+    "weight": 4
+  },
+  {
+    "text": "公务舱",
+    "weight": 4
+  },
+  {
+    "text": "经济舱",
+    "weight": 4
+  },
+  {
+    "text": "全经济舱",
+    "weight": 4
+  },
+  {
+    "text": "高端经济舱",
+    "weight": 4
+  },
+  {
+    "text": "豪华头等舱",
+    "weight": 4
+  },
+  {
+    "text": "单通道客机",
+    "weight": 4
+  },
+  {
+    "text": "双通道客机",
+    "weight": 4
+  },
+  {
+    "text": "宽体客机",
+    "weight": 4
+  },
+  {
+    "text": "窄体客机",
+    "weight": 4
+  },
+  {
+    "text": "超宽体客机",
+    "weight": 4
+  },
+  {
+    "text": "座椅",
+    "weight": 4
+  },
+  {
+    "text": "旅客座椅",
+    "weight": 4
+  },
+  {
+    "text": "航空座椅",
+    "weight": 4
+  },
+  {
+    "text": "驾驶员座椅",
+    "weight": 4
+  },
+  {
+    "text": "双联座椅",
+    "weight": 4
+  },
+  {
+    "text": "三联座椅",
+    "weight": 4
+  },
+  {
+    "text": "平躺式座椅",
+    "weight": 4
+  },
+  {
+    "text": "横躺式座椅",
+    "weight": 4
+  },
+  {
+    "text": "椅身组件",
+    "weight": 4
+  },
+  {
+    "text": "靠背组件",
+    "weight": 4
+  },
+  {
+    "text": "扶手组件",
+    "weight": 4
+  },
+  {
+    "text": "小桌板组件",
+    "weight": 4
+  },
+  {
+    "text": "安全带组件",
+    "weight": 4
+  },
+  {
+    "text": "座椅靠背",
+    "weight": 4
+  },
+  {
+    "text": "座椅椅面",
+    "weight": 4
+  },
+  {
+    "text": "座椅支撑架",
+    "weight": 4
+  },
+  {
+    "text": "座椅腿",
+    "weight": 4
+  },
+  {
+    "text": "座椅脚",
+    "weight": 4
+  },
+  {
+    "text": "座椅底座",
+    "weight": 4
+  },
+  {
+    "text": "坐垫",
+    "weight": 4
+  },
+  {
+    "text": "靠背垫",
+    "weight": 4
+  },
+  {
+    "text": "海绵垫",
+    "weight": 4
+  },
+  {
+    "text": "椅垫",
+    "weight": 4
+  },
+  {
+    "text": "头枕",
+    "weight": 4
+  },
+  {
+    "text": "靠背倾斜调节装置",
+    "weight": 4
+  },
+  {
+    "text": "液压后靠锁",
+    "weight": 4
+  },
+  {
+    "text": "作动筒",
+    "weight": 4
+  },
+  {
+    "text": "液压作动筒",
+    "weight": 4
+  },
+  {
+    "text": "电动作动筒",
+    "weight": 4
+  },
+  {
+    "text": "水平作动筒",
+    "weight": 4
+  },
+  {
+    "text": "垂直作动筒",
+    "weight": 4
+  },
+  {
+    "text": "回复弹簧",
+    "weight": 4
+  },
+  {
+    "text": "倾斜锁定机构",
+    "weight": 4
+  },
+  {
+    "text": "升降机构",
+    "weight": 4
+  },
+  {
+    "text": "调节机构",
+    "weight": 4
+  },
+  {
+    "text": "导轨接头",
+    "weight": 4
+  },
+  {
+    "text": "座椅导轨接头",
+    "weight": 4
+  },
+  {
+    "text": "地脚螺栓",
+    "weight": 4
+  },
+  {
+    "text": "地脚片",
+    "weight": 4
+  },
+  {
+    "text": "防动环形螺母",
+    "weight": 4
+  },
+  {
+    "text": "锁定活柱",
+    "weight": 4
+  },
+  {
+    "text": "剪切销",
+    "weight": 4
+  },
+  {
+    "text": "快卸锁",
+    "weight": 4
+  },
+  {
+    "text": "卡销",
+    "weight": 4
+  },
+  {
+    "text": "销轴",
+    "weight": 4
+  },
+  {
+    "text": "销套",
+    "weight": 4
+  },
+  {
+    "text": "止动螺钉",
+    "weight": 4
+  },
+  {
+    "text": "止动装置",
+    "weight": 4
+  },
+  {
+    "text": "铆钉",
+    "weight": 4
+  },
+  {
+    "text": "小桌板",
+    "weight": 4
+  },
+  {
+    "text": "餐桌板",
+    "weight": 4
+  },
+  {
+    "text": "扶手",
+    "weight": 4
+  },
+  {
+    "text": "可折叠扶手",
+    "weight": 4
+  },
+  {
+    "text": "烟灰缸",
+    "weight": 4
+  },
+  {
+    "text": "烟灰缸盖板",
+    "weight": 4
+  },
+  {
+    "text": "烟灰盒",
+    "weight": 4
+  },
+  {
+    "text": "防撞条",
+    "weight": 4
+  },
+  {
+    "text": "装饰板",
+    "weight": 4
+  },
+  {
+    "text": "扶手装饰板",
+    "weight": 4
+  },
+  {
+    "text": "扶手盖板",
+    "weight": 4
+  },
+  {
+    "text": "外罩套",
+    "weight": 4
+  },
+  {
+    "text": "靠背外罩套",
+    "weight": 4
+  },
+  {
+    "text": "杂物袋",
+    "weight": 4
+  },
+  {
+    "text": "杂志袋",
+    "weight": 4
+  },
+  {
+    "text": "清洁袋",
+    "weight": 4
+  },
+  {
+    "text": "救生衣",
+    "weight": 4
+  },
+  {
+    "text": "救生衣盒",
+    "weight": 4
+  },
+  {
+    "text": "尼龙阴阳扣带",
+    "weight": 4
+  },
+  {
+    "text": "PSU",
+    "weight": 4
+  },
+  {
+    "text": "PCU",
+    "weight": 4
+  },
+  {
+    "text": "SEU",
+    "weight": 4
+  },
+  {
+    "text": "ECU",
+    "weight": 4
+  },
+  {
+    "text": "ZMU",
+    "weight": 4
+  },
+  {
+    "text": "OEU",
+    "weight": 4
+  },
+  {
+    "text": "IDG",
+    "weight": 4
+  },
+  {
+    "text": "APU",
+    "weight": 4
+  },
+  {
+    "text": "CMS",
+    "weight": 4
+  },
+  {
+    "text": "ISDU",
+    "weight": 4
+  },
+  {
+    "text": "ACP",
+    "weight": 4
+  },
+  {
+    "text": "ISPC",
+    "weight": 4
+  },
+  {
+    "text": "IFE",
+    "weight": 4
+  },
+  {
+    "text": "MCU",
+    "weight": 4
+  },
+  {
+    "text": "旅客服务组件",
+    "weight": 4
+  },
+  {
+    "text": "旅客控制组件",
+    "weight": 4
+  },
+  {
+    "text": "座椅电子组件",
+    "weight": 4
+  },
+  {
+    "text": "座椅电子盒",
+    "weight": 4
+  },
+  {
+    "text": "电子控制器",
+    "weight": 4
+  },
+  {
+    "text": "区域管理组件",
+    "weight": 4
+  },
+  {
+    "text": "头顶电子组件",
+    "weight": 4
+  },
+  {
+    "text": "接口组件",
+    "weight": 4
+  },
+  {
+    "text": "呼叫电门",
+    "weight": 4
+  },
+  {
+    "text": "控制按钮",
+    "weight": 4
+  },
+  {
+    "text": "控制电缆",
+    "weight": 4
+  },
+  {
+    "text": "控制钢索",
+    "weight": 4
+  },
+  {
+    "text": "电插头",
+    "weight": 4
+  },
+  {
+    "text": "电源插口",
+    "weight": 4
+  },
+  {
+    "text": "跳开关",
+    "weight": 4
+  },
+  {
+    "text": "电磁阀",
+    "weight": 4
+  },
+  {
+    "text": "电磁锁",
+    "weight": 4
+  },
+  {
+    "text": "机内娱乐",
+    "weight": 4
+  },
+  {
+    "text": "娱乐系统",
+    "weight": 4
+  },
+  {
+    "text": "液晶电视",
+    "weight": 4
+  },
+  {
+    "text": "液晶屏",
+    "weight": 4
+  },
+  {
+    "text": "卫星电话",
+    "weight": 4
+  },
+  {
+    "text": "阅读灯",
+    "weight": 4
+  },
+  {
+    "text": "呼叫灯",
+    "weight": 4
+  },
+  {
+    "text": "情景灯光",
+    "weight": 4
+  },
+  {
+    "text": "降噪耳机",
+    "weight": 4
+  },
+  {
+    "text": "维修",
+    "weight": 4
+  },
+  {
+    "text": "检修",
+    "weight": 4
+  },
+  {
+    "text": "拆装",
+    "weight": 4
+  },
+  {
+    "text": "排故",
+    "weight": 4
+  },
+  {
+    "text": "维修人员",
+    "weight": 4
+  },
+  {
+    "text": "机务人员",
+    "weight": 4
+  },
+  {
+    "text": "维护",
+    "weight": 4
+  },
+  {
+    "text": "保养",
+    "weight": 4
+  },
+  {
+    "text": "检查",
+    "weight": 4
+  },
+  {
+    "text": "目视检查",
+    "weight": 4
+  },
+  {
+    "text": "清洁",
+    "weight": 4
+  },
+  {
+    "text": "修理",
+    "weight": 4
+  },
+  {
+    "text": "更换",
+    "weight": 4
+  },
+  {
+    "text": "调节",
+    "weight": 4
+  },
+  {
+    "text": "测试",
+    "weight": 4
+  },
+  {
+    "text": "检测",
+    "weight": 4
+  },
+  {
+    "text": "组装",
+    "weight": 4
+  },
+  {
+    "text": "分解",
+    "weight": 4
+  },
+  {
+    "text": "装配",
+    "weight": 4
+  },
+  {
+    "text": "专用工具",
+    "weight": 4
+  },
+  {
+    "text": "夹具",
+    "weight": 4
+  },
+  {
+    "text": "力矩扳手",
+    "weight": 4
+  },
+  {
+    "text": "钩形扳手",
+    "weight": 4
+  },
+  {
+    "text": "扭力扳手",
+    "weight": 4
+  },
+  {
+    "text": "导轨固定装置",
+    "weight": 4
+  },
+  {
+    "text": "防静电袋",
+    "weight": 4
+  },
+  {
+    "text": "防静电端盖",
+    "weight": 4
+  },
+  {
+    "text": "清洁剂",
+    "weight": 4
+  },
+  {
+    "text": "异丙醇",
+    "weight": 4
+  },
+  {
+    "text": "砂纸",
+    "weight": 4
+  },
+  {
+    "text": "螺栓",
+    "weight": 4
+  },
+  {
+    "text": "螺钉",
+    "weight": 4
+  },
+  {
+    "text": "螺母",
+    "weight": 4
+  },
+  {
+    "text": "适航",
+    "weight": 4
+  },
+  {
+    "text": "适航标准",
+    "weight": 4
+  },
+  {
+    "text": "适航证",
+    "weight": 4
+  },
+  {
+    "text": "适航部门",
+    "weight": 4
+  },
+  {
+    "text": "CMM手册",
+    "weight": 4
+  },
+  {
+    "text": "维修手册",
+    "weight": 4
+  },
+  {
+    "text": "工程手册",
+    "weight": 4
+  },
+  {
+    "text": "施工章节",
+    "weight": 4
+  },
+  {
+    "text": "损伤容限",
+    "weight": 4
+  },
+  {
+    "text": "力矩值",
+    "weight": 4
+  },
+  {
+    "text": "拆卸",
+    "weight": 4
+  },
+  {
+    "text": "拆除",
+    "weight": 4
+  },
+  {
+    "text": "安装",
+    "weight": 4
+  },
+  {
+    "text": "固定",
+    "weight": 4
+  },
+  {
+    "text": "连接",
+    "weight": 4
+  },
+  {
+    "text": "锁定",
+    "weight": 4
+  },
+  {
+    "text": "解锁",
+    "weight": 4
+  },
+  {
+    "text": "拧紧",
+    "weight": 4
+  },
+  {
+    "text": "松开",
+    "weight": 4
+  },
+  {
+    "text": "打力矩",
+    "weight": 4
+  },
+  {
+    "text": "止裂孔",
+    "weight": 4
+  },
+  {
+    "text": "阿罗丁处理",
+    "weight": 4
+  },
+  {
+    "text": "故障",
+    "weight": 4
+  },
+  {
+    "text": "损坏",
+    "weight": 4
+  },
+  {
+    "text": "磨损",
+    "weight": 4
+  },
+  {
+    "text": "腐蚀",
+    "weight": 4
+  },
+  {
+    "text": "裂纹",
+    "weight": 4
+  },
+  {
+    "text": "破损",
+    "weight": 4
+  },
+  {
+    "text": "松动",
+    "weight": 4
+  },
+  {
+    "text": "卡阻",
+    "weight": 4
+  },
+  {
+    "text": "失效",
+    "weight": 4
+  },
+  {
+    "text": "泄漏",
+    "weight": 4
+  },
+  {
+    "text": "TTL位",
+    "weight": 4
+  },
+  {
+    "text": "起飞",
+    "weight": 4
+  },
+  {
+    "text": "滑行",
+    "weight": 4
+  },
+  {
+    "text": "着陆",
+    "weight": 4
+  },
+  {
+    "text": "平飞",
+    "weight": 4
+  },
+  {
+    "text": "爬升",
+    "weight": 4
+  },
+  {
+    "text": "下降",
+    "weight": 4
+  },
+  {
+    "text": "颠簸",
+    "weight": 4
+  },
+  {
+    "text": "湍流",
+    "weight": 4
+  },
+  {
+    "text": "通话系统",
+    "weight": 4
+  },
+  {
+    "text": "呼叫系统",
+    "weight": 4
+  },
+  {
+    "text": "通风系统",
+    "weight": 4
+  },
+  {
+    "text": "照明系统",
+    "weight": 4
+  },
+  {
+    "text": "供电系统",
+    "weight": 4
+  },
+  {
+    "text": "转换汇流条",
+    "weight": 4
+  },
+  {
+    "text": "行李架",
+    "weight": 4
+  },
+  {
+    "text": "厨房",
+    "weight": 4
+  },
+  {
+    "text": "厕所",
+    "weight": 4
+  },
+  {
+    "text": "储物柜",
+    "weight": 4
+  },
+  {
+    "text": "屏风",
+    "weight": 4
+  },
+  {
+    "text": "隔帘",
+    "weight": 4
+  },
+  {
+    "text": "推拉门",
+    "weight": 4
+  },
+  {
+    "text": "集装箱",
+    "weight": 4
+  },
+  {
+    "text": "货盘",
+    "weight": 4
+  },
+  {
+    "text": "钢索操纵系统",
+    "weight": 4
+  },
+  {
+    "text": "铰接装置",
+    "weight": 4
+  },
+  {
+    "text": "合页",
+    "weight": 4
+  },
+  {
+    "text": "滑槽结构",
+    "weight": 4
+  },
+  {
+    "text": "同步齿形带",
+    "weight": 4
+  },
+  {
+    "text": "蜗轮蜗杆机构",
+    "weight": 4
+  },
+  {
+    "text": "伞齿轮装置",
+    "weight": 4
+  },
+  {
+    "text": "铰接四杆机构",
+    "weight": 4
+  },
+  {
+    "text": "C919",
+    "weight": 4
+  },
+  {
+    "text": "ARJ21",
+    "weight": 4
+  },
+  {
+    "text": "CFM56",
+    "weight": 4
+  },
+  {
+    "text": "B737-600",
+    "weight": 4
+  },
+  {
+    "text": "B737-800",
+    "weight": 4
+  },
+  {
+    "text": "737NG",
+    "weight": 4
+  },
+  {
+    "text": "737MAX",
+    "weight": 4
+  },
+  {
+    "text": "VOR",
+    "weight": 4
+  },
+  {
+    "text": "DME",
+    "weight": 4
+  },
+  {
+    "text": "ADF",
+    "weight": 4
+  },
+  {
+    "text": "ILS",
+    "weight": 4
+  },
+  {
+    "text": "LOC",
+    "weight": 4
+  },
+  {
+    "text": "TCAS",
+    "weight": 4
+  },
+  {
+    "text": "ADS",
+    "weight": 4
+  },
+  {
+    "text": "ADS-B",
+    "weight": 4
+  },
+  {
+    "text": "AMM",
+    "weight": 4
+  },
+  {
+    "text": "CDU",
+    "weight": 4
+  },
+  {
+    "text": "ACARS",
+    "weight": 4
+  },
+  {
+    "text": "FMC",
+    "weight": 4
+  },
+  {
+    "text": "PFD",
+    "weight": 4
+  },
+  {
+    "text": "ND",
+    "weight": 4
+  },
+  {
+    "text": "EFIS",
+    "weight": 4
+  },
+  {
+    "text": "ECAM",
+    "weight": 4
+  },
+  {
+    "text": "CDS",
+    "weight": 4
+  },
+  {
+    "text": "DEU",
+    "weight": 4
+  },
+  {
+    "text": "DU",
+    "weight": 4
+  },
+  {
+    "text": "CWS",
+    "weight": 4
+  },
+  {
+    "text": "REU",
+    "weight": 4
+  },
+  {
+    "text": "EEC",
+    "weight": 4
+  },
+  {
+    "text": "BITE",
+    "weight": 4
+  },
+  {
+    "text": "ELT",
+    "weight": 4
+  },
+  {
+    "text": "GCU",
+    "weight": 4
+  },
+  {
+    "text": "BPCU",
+    "weight": 4
+  },
+  {
+    "text": "GCB",
+    "weight": 4
+  },
+  {
+    "text": "VFSG",
+    "weight": 4
+  },
+  {
+    "text": "CSD",
+    "weight": 4
+  },
+  {
+    "text": "IRS",
+    "weight": 4
+  },
+  {
+    "text": "ADIRU",
+    "weight": 4
+  },
+  {
+    "text": "ADIRS",
+    "weight": 4
+  },
+  {
+    "text": "SATCOM",
+    "weight": 4
+  },
+  {
+    "text": "AFDX",
+    "weight": 4
+  },
+  {
+    "text": "RCP",
+    "weight": 4
+  },
+  {
+    "text": "RMP",
+    "weight": 4
+  },
+  {
+    "text": "SCU",
+    "weight": 4
+  },
+  {
+    "text": "PSEU",
+    "weight": 4
+  },
+  {
+    "text": "EMDP",
+    "weight": 4
+  },
+  {
+    "text": "CVR",
+    "weight": 4
+  },
+  {
+    "text": "RNP",
+    "weight": 4
+  },
+  {
+    "text": "ATC",
+    "weight": 4
+  },
+  {
+    "text": "HF",
+    "weight": 4
+  },
+  {
+    "text": "VHF",
+    "weight": 4
+  },
+  {
+    "text": "甚高频",
+    "weight": 4
+  },
+  {
+    "text": "应答机",
+    "weight": 4
+  },
+  {
+    "text": "数据链",
+    "weight": 4
+  },
+  {
+    "text": "数据总线",
+    "weight": 4
+  },
+  {
+    "text": "卫星通信",
+    "weight": 4
+  },
+  {
+    "text": "飞行数据",
+    "weight": 4
+  },
+  {
+    "text": "局域网",
+    "weight": 4
+  },
+  {
+    "text": "以太网",
+    "weight": 4
+  },
+  {
+    "text": "令牌环",
+    "weight": 4
+  },
+  {
+    "text": "28V",
+    "weight": 4
+  },
+  {
+    "text": "115V",
+    "weight": 4
+  },
+  {
+    "text": "115VAC",
+    "weight": 4
+  },
+  {
+    "text": "230V",
+    "weight": 4
+  },
+  {
+    "text": "235V",
+    "weight": 4
+  },
+  {
+    "text": "270V",
+    "weight": 4
+  },
+  {
+    "text": "400V",
+    "weight": 4
+  },
+  {
+    "text": "交流电",
+    "weight": 4
+  },
+  {
+    "text": "直流电",
+    "weight": 4
+  },
+  {
+    "text": "交流电源",
+    "weight": 4
+  },
+  {
+    "text": "直流电源",
+    "weight": 4
+  },
+  {
+    "text": "3200PSI",
+    "weight": 4
+  },
+  {
+    "text": "1090ES",
+    "weight": 4
+  },
+  {
+    "text": "导航系统",
+    "weight": 4
+  },
+  {
+    "text": "控制系统",
+    "weight": 4
+  },
+  {
+    "text": "制冷系统",
+    "weight": 4
+  },
+  {
+    "text": "冷却系统",
+    "weight": 4
+  },
+  {
+    "text": "广播系统",
+    "weight": 4
+  },
+  {
+    "text": "循环系统",
+    "weight": 4
+  },
+  {
+    "text": "信息系统",
+    "weight": 4
+  },
+  {
+    "text": "信息管理系统",
+    "weight": 4
+  },
+  {
+    "text": "管理系统",
+    "weight": 4
+  },
+  {
+    "text": "探测系统",
+    "weight": 4
+  },
+  {
+    "text": "控制电路",
+    "weight": 4
+  },
+  {
+    "text": "电气系统",
+    "weight": 4
+  },
+  {
+    "text": "电子系统",
+    "weight": 4
+  },
+  {
+    "text": "压气机",
+    "weight": 4
+  },
+  {
+    "text": "压缩机",
+    "weight": 4
+  },
+  {
+    "text": "整流罩",
+    "weight": 4
+  },
+  {
+    "text": "控制面板",
+    "weight": 4
+  },
+  {
+    "text": "作动器",
+    "weight": 4
+  },
+  {
+    "text": "方向舵",
+    "weight": 4
+  },
+  {
+    "text": "升降舵",
+    "weight": 4
+  },
+  {
+    "text": "扰流板",
+    "weight": 4
+  },
+  {
+    "text": "减速板",
+    "weight": 4
+  },
+  {
+    "text": "驾驶盘",
+    "weight": 4
+  },
+  {
+    "text": "驾驶仪",
+    "weight": 4
+  },
+  {
+    "text": "自动驾驶仪",
+    "weight": 4
+  },
+  {
+    "text": "液压泵",
+    "weight": 4
+  },
+  {
+    "text": "液压油",
+    "weight": 4
+  },
+  {
+    "text": "燃油泵",
+    "weight": 4
+  },
+  {
+    "text": "燃油箱",
+    "weight": 4
+  },
+  {
+    "text": "主油箱",
+    "weight": 4
+  },
+  {
+    "text": "滑油滤",
+    "weight": 4
+  },
+  {
+    "text": "回油滤",
+    "weight": 4
+  },
+  {
+    "text": "燃烧室",
+    "weight": 4
+  },
+  {
+    "text": "螺旋桨",
+    "weight": 4
+  },
+  {
+    "text": "蓄电池",
+    "weight": 4
+  },
+  {
+    "text": "酸蓄电池",
+    "weight": 4
+  },
+  {
+    "text": "锂离子",
+    "weight": 4
+  },
+  {
+    "text": "起动机",
+    "weight": 4
+  },
+  {
+    "text": "热交换器",
+    "weight": 4
+  },
+  {
+    "text": "预冷器",
+    "weight": 4
+  },
+  {
+    "text": "冷凝器",
+    "weight": 4
+  },
+  {
+    "text": "增压泵",
+    "weight": 4
+  },
+  {
+    "text": "齿轮箱",
+    "weight": 4
+  },
+  {
+    "text": "减速箱",
+    "weight": 4
+  },
+  {
+    "text": "助力器",
+    "weight": 4
+  },
+  {
+    "text": "继电器",
+    "weight": 4
+  },
+  {
+    "text": "接触器",
+    "weight": 4
+  },
+  {
+    "text": "变压器",
+    "weight": 4
+  },
+  {
+    "text": "整流器",
+    "weight": 4
+  },
+  {
+    "text": "转换器",
+    "weight": 4
+  },
+  {
+    "text": "断路器",
+    "weight": 4
+  },
+  {
+    "text": "镇流器",
+    "weight": 4
+  },
+  {
+    "text": "选择器",
+    "weight": 4
+  },
+  {
+    "text": "调节器",
+    "weight": 4
+  },
+  {
+    "text": "放大器",
+    "weight": 4
+  },
+  {
+    "text": "阻尼器",
+    "weight": 4
+  },
+  {
+    "text": "补偿器",
+    "weight": 4
+  },
+  {
+    "text": "分离器",
+    "weight": 4
+  },
+  {
+    "text": "执行机构",
+    "weight": 4
+  },
+  {
+    "text": "处理器",
+    "weight": 4
+  },
+  {
+    "text": "指示灯",
+    "weight": 4
+  },
+  {
+    "text": "应急灯",
+    "weight": 4
+  },
+  {
+    "text": "标志灯",
+    "weight": 4
+  },
+  {
+    "text": "位置灯",
+    "weight": 4
+  },
+  {
+    "text": "信号灯",
+    "weight": 4
+  },
+  {
+    "text": "航行灯",
+    "weight": 4
+  },
+  {
+    "text": "长明灯",
+    "weight": 4
+  },
+  {
+    "text": "白炽灯",
+    "weight": 4
+  },
+  {
+    "text": "荧光灯",
+    "weight": 4
+  },
+  {
+    "text": "探测器",
+    "weight": 4
+  },
+  {
+    "text": "记录器",
+    "weight": 4
+  },
+  {
+    "text": "充电器",
+    "weight": 4
+  },
+  {
+    "text": "充电机",
+    "weight": 4
+  },
+  {
+    "text": "加热器",
+    "weight": 4
+  },
+  {
+    "text": "储压器",
+    "weight": 4
+  },
+  {
+    "text": "刹车盘",
+    "weight": 4
+  },
+  {
+    "text": "轮毂罩",
+    "weight": 4
+  },
+  {
+    "text": "下锁销",
+    "weight": 4
+  },
+  {
+    "text": "活塞杆",
+    "weight": 4
+  },
+  {
+    "text": "转接头",
+    "weight": 4
+  },
+  {
+    "text": "气门芯",
+    "weight": 4
+  },
+  {
+    "text": "层帘线",
+    "weight": 4
+  },
+  {
+    "text": "千斤顶",
+    "weight": 4
+  },
+  {
+    "text": "牵引车",
+    "weight": 4
+  },
+  {
+    "text": "工作梯",
+    "weight": 4
+  },
+  {
+    "text": "停机坪",
+    "weight": 4
+  },
+  {
+    "text": "加油站",
+    "weight": 4
+  },
+  {
+    "text": "同轴电缆",
+    "weight": 4
+  },
+  {
+    "text": "电源插座",
+    "weight": 4
+  },
+  {
+    "text": "数字信号",
+    "weight": 4
+  },
+  {
+    "text": "视频信号",
+    "weight": 4
+  },
+  {
+    "text": "操纵台",
+    "weight": 4
+  },
+  {
+    "text": "仪表板",
+    "weight": 4
+  },
+  {
+    "text": "控制板",
+    "weight": 4
+  },
+  {
+    "text": "前面板",
+    "weight": 4
+  },
+  {
+    "text": "遮光板",
+    "weight": 4
+  },
+  {
+    "text": "观察窗",
+    "weight": 4
+  },
+  {
+    "text": "逻辑电路",
+    "weight": 4
+  },
+  {
+    "text": "结构件",
+    "weight": 4
+  },
+  {
+    "text": "防割层",
+    "weight": 4
+  },
+  {
+    "text": "玻璃纤维",
+    "weight": 4
+  },
+  {
+    "text": "碳纤维",
+    "weight": 4
+  },
+  {
+    "text": "环氧树脂",
+    "weight": 4
+  },
+  {
+    "text": "预浸料",
+    "weight": 4
+  },
+  {
+    "text": "合金钢",
+    "weight": 4
+  },
+  {
+    "text": "不锈钢",
+    "weight": 4
+  },
+  {
+    "text": "金属表面",
+    "weight": 4
+  },
+  {
+    "text": "密封胶",
+    "weight": 4
+  },
+  {
+    "text": "灭火剂",
+    "weight": 4
+  },
+  {
+    "text": "消毒剂",
+    "weight": 4
+  },
+  {
+    "text": "防腐剂",
+    "weight": 4
+  },
+  {
+    "text": "排雨剂",
+    "weight": 4
+  },
+  {
+    "text": "电解液",
+    "weight": 4
+  },
+  {
+    "text": "惰性气体",
+    "weight": 4
+  },
+  {
+    "text": "压缩空气",
+    "weight": 4
+  },
+  {
+    "text": "冷却空气",
+    "weight": 4
+  },
+  {
+    "text": "热空气",
+    "weight": 4
+  },
+  {
+    "text": "热水器",
+    "weight": 4
+  },
+  {
+    "text": "氧气瓶",
+    "weight": 4
+  },
+  {
+    "text": "水龙头",
+    "weight": 4
+  },
+  {
+    "text": "排水管",
+    "weight": 4
+  },
+  {
+    "text": "污水排放",
+    "weight": 4
+  },
+  {
+    "text": "供水管",
+    "weight": 4
+  },
+  {
+    "text": "通气管",
+    "weight": 4
+  },
+  {
+    "text": "卫生间",
+    "weight": 4
+  },
+  {
+    "text": "洗手池",
+    "weight": 4
+  },
+  {
+    "text": "洗手间",
+    "weight": 4
+  },
+  {
+    "text": "饮用水",
+    "weight": 4
+  },
+  {
+    "text": "咖啡壶",
+    "weight": 4
+  },
+  {
+    "text": "天花板",
+    "weight": 4
+  },
+  {
+    "text": "行李箱",
+    "weight": 4
+  },
+  {
+    "text": "安全带",
+    "weight": 4
+  },
+  {
+    "text": "应答码",
+    "weight": 4
+  },
+  {
+    "text": "识别码",
+    "weight": 4
+  },
+  {
+    "text": "计算机系统",
+    "weight": 4
+  },
+  {
+    "text": "子系统",
+    "weight": 4
+  },
+  {
+    "text": "备用系统",
+    "weight": 4
+  },
+  {
+    "text": "紧急情况",
+    "weight": 4
+  },
+  {
+    "text": "机载设备",
+    "weight": 4
+  },
+  {
+    "text": "电气设备",
+    "weight": 4
+  },
+  {
+    "text": "电子设备",
+    "weight": 4
+  },
+  {
+    "text": "动力装置",
+    "weight": 4
+  },
+  {
+    "text": "保护装置",
+    "weight": 4
+  },
+  {
+    "text": "控制指令",
+    "weight": 4
+  },
+  {
+    "text": "系统故障",
+    "weight": 4
+  },
+  {
+    "text": "二极管",
+    "weight": 4
+  },
+  {
+    "text": "转换开关",
+    "weight": 4
+  },
+  {
+    "text": "选择开关",
+    "weight": 4
+  },
+  {
+    "text": "灯电门",
+    "weight": 4
+  },
+  {
+    "text": "南方航空公司",
+    "weight": 4
+  },
+  {
+    "text": "波音公司",
+    "weight": 4
+  }
+]
