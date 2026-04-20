@@ -14,7 +14,7 @@
 
 随着大语言模型技术的快速发展，基于语音交互的智能问答系统在专业领域具有广阔的应用前景。本文设计并实现了一个面向航空维修领域的知识增强语音问答 Agent 系统，集成了语音识别（STT）、检索增强生成（RAG）、大语言模型推理（LLM）和语音合成（TTS）四大核心模块，采用端到端流式架构实现了低延迟的实时语音交互。
 
-在检索增强生成方面，本文构建了基于飞机维修手册的专业知识库，实现了稠密向量检索（FAISS）与稀疏检索（BM25）相结合的混合检索策略，并通过交叉编码器重排序、查询改写、上下文增强切分和航空术语自定义词典等多项优化措施，将检索命中率（Hit Rate@5）从 84.44% 提升至 97.78%，平均倒数排名（MRR@5）从 0.6626 提升至 0.9667。
+在检索增强生成方面，本文构建了基于 5 份飞机维修手册、共 1478 个文档片段的专业知识库，实现了稠密向量检索（FAISS）与稀疏检索（BM25）相结合的混合检索策略，并通过交叉编码器重排序、查询改写、上下文增强切分和航空术语自定义词典等多项优化措施，将检索命中率（Hit Rate@5）从 73.33% 提升至 95.56%，平均倒数排名（MRR@5）从 0.5781 提升至 0.9444。
 
 在流式交互方面，本文基于 FastAPI + WebSocket 架构，通过 asyncio 协程与多线程混合调度模型实现了 STT、LLM 和 TTS 的全链路流式并行处理，配合文本缓冲策略和音频预缓冲机制，将端到端延迟从约 5.6 秒降低至约 1.6 秒。同时实现了基于 VAD 的语音打断功能，提升了交互自然度。
 
@@ -28,7 +28,7 @@
 
 With the rapid development of large language model technology, voice-interactive intelligent question-answering systems have broad application prospects in professional domains. This paper designs and implements a knowledge-enhanced voice question-answering Agent system for the aviation maintenance domain, integrating four core modules: Speech-to-Text (STT), Retrieval-Augmented Generation (RAG), Large Language Model inference (LLM), and Text-to-Speech (TTS), employing an end-to-end streaming architecture to achieve low-latency real-time voice interaction.
 
-In terms of retrieval-augmented generation, this paper constructs a professional knowledge base from aircraft maintenance manuals, implements a hybrid retrieval strategy combining dense vector retrieval (FAISS) and sparse retrieval (BM25), and improves the Hit Rate@5 from 84.44% to 97.78% and MRR@5 from 0.6626 to 0.9667 through multiple optimization measures including cross-encoder reranking, query rewriting, contextual chunking enrichment, and custom aviation terminology dictionaries.
+In terms of retrieval-augmented generation, this paper constructs a professional knowledge base from five aircraft maintenance manuals totaling 1478 document chunks, implements a hybrid retrieval strategy combining dense vector retrieval (FAISS) and sparse retrieval (BM25), and improves the Hit Rate@5 from 73.33% to 95.56% and MRR@5 from 0.5781 to 0.9444 through multiple optimization measures including cross-encoder reranking, query rewriting, contextual chunking enrichment, and custom aviation terminology dictionaries.
 
 In terms of streaming interaction, this paper implements full-pipeline streaming parallel processing of STT, LLM, and TTS based on a FastAPI + WebSocket architecture with an asyncio coroutine and multi-threading hybrid scheduling model, reducing end-to-end latency from approximately 5.6 seconds to approximately 1.6 seconds through text buffering strategies and audio pre-buffering mechanisms. A VAD-based voice interruption feature is also implemented to enhance interaction naturalness.
 
