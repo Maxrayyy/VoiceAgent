@@ -495,7 +495,7 @@ class StreamingSynthesizer:
 
         self._synthesizer = SpeechSynthesizer(
             model="cosyvoice-v3-flash",              # CosyVoice 模型
-            voice="longanyang",                       # 发音人
+            voice="longxiaochun_v3",                       # 发音人
             format=AudioFormat.PCM_22050HZ_MONO_16BIT, # 输出格式
             callback=self._callback,                   # 回调处理器
         )
@@ -1211,7 +1211,7 @@ class Config:
     # 模型选择
     LLM_MODEL = "qwen-plus"              # 大语言模型
     TTS_MODEL = "cosyvoice-v3-flash"     # 语音合成模型（flash = 低延迟版）
-    TTS_VOICE = "longanyang"             # 发音人
+    TTS_VOICE = "longxiaochun_v3"             # 发音人
     EMBEDDING_MODEL = "text-embedding-v3" # 向量化模型
 ```
 

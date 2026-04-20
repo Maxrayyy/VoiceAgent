@@ -19,7 +19,7 @@ class Config:
     # Models
     LLM_MODEL = os.getenv("LLM_MODEL", "qwen-plus")
     TTS_MODEL = os.getenv("TTS_MODEL", "cosyvoice-v3-flash")
-    TTS_VOICE = os.getenv("TTS_VOICE", "longanyang")
+    TTS_VOICE = os.getenv("TTS_VOICE", "longxiaochun_v3")
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-v3")
 
     # Server

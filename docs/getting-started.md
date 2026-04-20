@@ -121,7 +121,7 @@ from dashscope.audio.tts_v2 import SpeechSynthesizer
 from src.config import config
 
 dashscope.api_key = config.DASHSCOPE_API_KEY
-synth = SpeechSynthesizer(model='cosyvoice-v3-flash', voice='longanyang')
+synth = SpeechSynthesizer(model='cosyvoice-v3-flash', voice='longxiaochun_v3')
 audio = synth.call('飞机维修需要严格遵循维修手册操作。')
 with open('test_tts.mp3', 'wb') as f:
     f.write(audio)
