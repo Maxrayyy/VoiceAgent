@@ -1340,14 +1340,6 @@
     "weight": 4
   },
   {
-    "text": "发动机",
-    "weight": 4
-  },
-  {
-    "text": "发电机",
-    "weight": 4
-  },
-  {
     "text": "导航系统",
     "weight": 4
   },
@@ -1417,18 +1409,6 @@
   },
   {
     "text": "作动器",
-    "weight": 4
-  },
-  {
-    "text": "传感器",
-    "weight": 4
-  },
-  {
-    "text": "温度传感器",
-    "weight": 4
-  },
-  {
-    "text": "加速度计",
     "weight": 4
   },
   {
@@ -1600,54 +1580,6 @@
     "weight": 4
   },
   {
-    "text": "显示器",
-    "weight": 4
-  },
-  {
-    "text": "显示屏",
-    "weight": 4
-  },
-  {
-    "text": "接收机",
-    "weight": 4
-  },
-  {
-    "text": "发射机",
-    "weight": 4
-  },
-  {
-    "text": "收发机",
-    "weight": 4
-  },
-  {
-    "text": "打印机",
-    "weight": 4
-  },
-  {
-    "text": "扬声器",
-    "weight": 4
-  },
-  {
-    "text": "麦克风",
-    "weight": 4
-  },
-  {
-    "text": "高度表",
-    "weight": 4
-  },
-  {
-    "text": "空速表",
-    "weight": 4
-  },
-  {
-    "text": "压力表",
-    "weight": 4
-  },
-  {
-    "text": "地平仪",
-    "weight": 4
-  },
-  {
     "text": "指示灯",
     "weight": 4
   },
@@ -1772,62 +1704,6 @@
     "weight": 4
   },
   {
-    "text": "模块化",
-    "weight": 4
-  },
-  {
-    "text": "嵌入式",
-    "weight": 4
-  },
-  {
-    "text": "便携式",
-    "weight": 4
-  },
-  {
-    "text": "固定式",
-    "weight": 4
-  },
-  {
-    "text": "数字式",
-    "weight": 4
-  },
-  {
-    "text": "增强型",
-    "weight": 4
-  },
-  {
-    "text": "多功能",
-    "weight": 4
-  },
-  {
-    "text": "自动控制",
-    "weight": 4
-  },
-  {
-    "text": "温度控制",
-    "weight": 4
-  },
-  {
-    "text": "系统控制",
-    "weight": 4
-  },
-  {
-    "text": "人工控制",
-    "weight": 4
-  },
-  {
-    "text": "数据通信",
-    "weight": 4
-  },
-  {
-    "text": "数据传输",
-    "weight": 4
-  },
-  {
-    "text": "操作程序",
-    "weight": 4
-  },
-  {
     "text": "操纵台",
     "weight": 4
   },
@@ -1856,47 +1732,11 @@
     "weight": 4
   },
   {
-    "text": "原理图",
-    "weight": 4
-  },
-  {
-    "text": "示意图",
-    "weight": 4
-  },
-  {
-    "text": "核心部件",
-    "weight": 4
-  },
-  {
     "text": "结构件",
     "weight": 4
   },
   {
-    "text": "紧固件",
-    "weight": 4
-  },
-  {
-    "text": "组成部分",
-    "weight": 4
-  },
-  {
-    "text": "保护层",
-    "weight": 4
-  },
-  {
-    "text": "防静电",
-    "weight": 4
-  },
-  {
     "text": "防割层",
-    "weight": 4
-  },
-  {
-    "text": "金属材料",
-    "weight": 4
-  },
-  {
-    "text": "复合材料",
     "weight": 4
   },
   {
