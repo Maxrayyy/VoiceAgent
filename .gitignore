@@ -13,6 +13,7 @@ data/knowledge/
 data/index/
 data/figures/
 data/txt/
+thesis/docx/
 alibabacloud-nls-python-sdk/
 .claude/*.local.json
 data/test_audio/*.wav
