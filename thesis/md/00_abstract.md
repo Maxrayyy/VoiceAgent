@@ -12,29 +12,29 @@
 
 ## 摘要
 
-随着大语言模型技术的快速发展，基于语音交互的智能问答系统在专业领域具有广阔的应用前景。本文设计并实现了一个面向航空维修领域的知识增强语音问答 Agent 系统，集成了语音识别（STT）、检索增强生成（RAG）、大语言模型推理（LLM）和语音合成（TTS）四大核心模块，采用端到端流式架构实现了低延迟的实时语音交互。
+随着大语言模型技术的快速发展，基于语音交互的智能问答系统在专业领域具有广阔的应用前景。本文设计并实现了一个面向航空维修领域的知识增强语音问答智能体，集成了语音识别（STT）、检索增强生成（RAG）、大语言模型推理（LLM）和语音合成（TTS）四大核心模块，采用端到端流式架构实现了低延迟的实时语音交互。
 
 在检索增强生成方面，本文构建了基于 5 份飞机维修手册、共 1478 个文档片段的专业知识库，实现了稠密向量检索（FAISS）与稀疏检索（BM25）相结合的混合检索策略，并通过交叉编码器重排序、查询改写、上下文增强切分和航空术语自定义词典等多项优化措施，将检索命中率（Hit Rate@5）从 73.33% 提升至 95.56%，平均倒数排名（MRR@5）从 0.5781 提升至 0.9444。
 
-在流式交互方面，本文基于 FastAPI + WebSocket 架构，通过协程与多线程混合调度模型实现了 STT、LLM 和 TTS 的全链路流式并行处理，配合文本缓冲策略和音频预缓冲机制，将端到端延迟从约 5.6 秒降低至约 1.6 秒。同时实现了基于 VAD 的语音打断功能，提升了交互自然度。
+在流式交互方面，本项目基于 WebSocket 架构，通过多协程与多线程混合调度模型实现了 STT、LLM 和 TTS 的全链路流式并行处理，配合文本缓冲策略和音频预缓冲机制，将端到端延迟从约 5.6 秒降低至约 1.6 秒。同时实现了基于语音活动检测（VAD）的语音打断功能，提升了交互自然度。
 
-系统前端基于原生 JavaScript 和 Web Audio API 实现了航空仪表盘风格的交互界面，支持持续监听和按住说话两种录音模式。实验结果表明，本项目在检索准确性、响应延迟和交互体验等方面达到了预期目标，能够为航空维修技术人员提供高效、准确的语音问答服务。
+实验结果表明，本系统在检索准确性、响应延迟和交互体验等方面达到了预期目标，能够为航空维修技术人员提供高效、准确的语音问答服务。
 
-**关键词**：检索增强生成；大语言模型；语音交互；混合检索；流式处理
+**关键词**：检索增强生成；大语言模型；语音交互；流式处理
 
 ---
 
 ## Abstract
 
-With the rapid development of large language model technology, voice-interactive intelligent question-answering systems have broad application prospects in professional domains. This paper designs and implements a knowledge-enhanced voice question-answering Agent system for the aviation maintenance domain, integrating four core modules: Speech-to-Text (STT), Retrieval-Augmented Generation (RAG), Large Language Model inference (LLM), and Text-to-Speech (TTS), employing an end-to-end streaming architecture to achieve low-latency real-time voice interaction.
+With the rapid development of large language model technology, voice-interactive intelligent question-answering systems have broad application prospects in professional domains. This paper designs and implements a knowledge-enhanced voice question-answering intelligent agent for the aviation maintenance domain, integrating four core modules: Speech-to-Text (STT), Retrieval-Augmented Generation (RAG), Large Language Model inference (LLM), and Text-to-Speech (TTS), and adopts an end-to-end streaming architecture to achieve low-latency real-time voice interaction.
 
 In terms of retrieval-augmented generation, this paper constructs a professional knowledge base from five aircraft maintenance manuals totaling 1478 document chunks, implements a hybrid retrieval strategy combining dense vector retrieval (FAISS) and sparse retrieval (BM25), and improves the Hit Rate@5 from 73.33% to 95.56% and MRR@5 from 0.5781 to 0.9444 through multiple optimization measures including cross-encoder reranking, query rewriting, contextual chunking enrichment, and custom aviation terminology dictionaries.
 
-In terms of streaming interaction, this paper implements full-pipeline streaming parallel processing of STT, LLM, and TTS based on a FastAPI + WebSocket architecture with an asyncio coroutine and multi-threading hybrid scheduling model, reducing end-to-end latency from approximately 5.6 seconds to approximately 1.6 seconds through text buffering strategies and audio pre-buffering mechanisms. A VAD-based voice interruption feature is also implemented to enhance interaction naturalness.
+In terms of streaming interaction, the project is built on a WebSocket-based architecture and employs a hybrid scheduling model combining multiple coroutines and multiple threads to realize full-pipeline streaming parallel processing of STT, LLM, and TTS. Together with text buffering and audio pre-buffering strategies, the end-to-end latency is reduced from approximately 5.6 seconds to approximately 1.6 seconds. In addition, a voice interruption mechanism based on Voice Activity Detection (VAD) is implemented to improve interaction naturalness.
 
-The system frontend implements an aviation dashboard-styled interactive interface using native JavaScript and Web Audio API, supporting both continuous listening and push-to-talk recording modes. Experimental results demonstrate that the system achieves expected targets in retrieval accuracy, response latency, and interaction experience, providing efficient and accurate voice question-answering services for aviation maintenance technicians.
+Experimental results demonstrate that the system achieves the expected goals in retrieval accuracy, response latency, and interaction experience, and can provide efficient and accurate voice question-answering services for aviation maintenance technicians.
 
-**Keywords**: Retrieval-Augmented Generation; Large Language Model; Voice Interaction; Hybrid Retrieval; Streaming Processing
+**Keywords**: Retrieval-Augmented Generation; Large Language Model; Voice Interaction; Streaming Processing
 
 ---
 
