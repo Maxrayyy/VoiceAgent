@@ -8,7 +8,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 FIG_DIR = BASE_DIR / "thesis" / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
-FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+
+def _pick_font() -> str:
+    candidates = [
+        "/mnt/c/Windows/Fonts/msyh.ttc",
+        "/mnt/c/Windows/Fonts/simhei.ttf",
+        "/mnt/c/Windows/Fonts/simsun.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for path in candidates:
+        if Path(path).exists():
+            return path
+    raise FileNotFoundError("未找到可用字体文件")
+
+
+FONT_PATH = _pick_font()
 TITLE_FONT = ImageFont.truetype(FONT_PATH, 28)
 BOX_FONT = ImageFont.truetype(FONT_PATH, 24)
 SMALL_FONT = ImageFont.truetype(FONT_PATH, 20)
@@ -76,20 +90,20 @@ def save(img, name):
 def fig_3_4():
     img = Image.new("RGB", (1600, 620), BG)
     draw = ImageDraw.Draw(img)
-    title(draw, "Mixed Scheduling Model", 1600)
+    title(draw, "线程与协程混合调度模型", 1600)
 
-    box(draw, (60, 220, 300, 360), "Browser\nAudio / UI", "#FFE0B2")
-    box(draw, (410, 170, 720, 410), "Main Event Loop\nWebSocket\nPipeline\nLLM", "#BBDEFB")
-    box(draw, (860, 100, 1160, 260), "STT Worker\nstart / stop\nSDK call", "#C8E6C9")
-    box(draw, (860, 340, 1160, 500), "TTS Callback\nPCM chunks", "#F8BBD0")
-    box(draw, (1280, 190, 1520, 410), "Thread-safe Bridge\ncall_soon_threadsafe", "#FFF59D")
+    box(draw, (60, 220, 330, 370), "浏览器前端\n录音 / 播放 / 状态展示", "#FFE0B2")
+    box(draw, (430, 160, 790, 430), "主事件循环\nWebSocket 接入\n会话编排\nLLM 生成", "#BBDEFB")
+    box(draw, (910, 90, 1220, 270), "STT 工作线程\n建立连接\n送入音频\n停止识别", "#C8E6C9")
+    box(draw, (910, 350, 1220, 530), "TTS 回调线程\n音频片段回传", "#F8BBD0")
+    box(draw, (1300, 180, 1540, 420), "线程安全投递\n必要处使用\ncall_soon_threadsafe", "#FFF59D")
 
-    arrow(draw, (300, 290), (410, 290), "audio / cmd")
-    arrow(draw, (720, 220), (860, 180), "blocking op")
-    arrow(draw, (1160, 180), (1280, 245), "text")
-    arrow(draw, (1160, 420), (1280, 355), "pcm")
-    arrow(draw, (1280, 300), (720, 360), "back to loop")
-    arrow(draw, (720, 290), (300, 290), "text / audio")
+    arrow(draw, (330, 295), (430, 295), "音频与控制指令")
+    arrow(draw, (790, 220), (910, 180), "阻塞式识别操作")
+    arrow(draw, (1220, 180), (1300, 245), "识别文本")
+    arrow(draw, (1220, 440), (1300, 355), "PCM 音频")
+    arrow(draw, (1300, 300), (790, 370), "回到主流程")
+    arrow(draw, (790, 295), (330, 295), "文本与音频下发")
 
     save(img, "fig_3_4_sched_model.png")
 
