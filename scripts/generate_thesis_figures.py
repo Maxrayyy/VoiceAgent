@@ -5,9 +5,15 @@
 - 图 3.1 系统用例图（usecase.png）
 - 图 3.2 系统四层架构图（four_layer_arch.png）
 - 图 3.3 端到端流式数据流图（streaming_dataflow.png）
+- 图 3.4 线程与协程混合调度图（sched_model.png）
 - 图 4.1 系统总体架构图（system_arch.png）
 - 图 4.2 模块划分与依赖图（module_deps.png）
 - 图 4.3 查询处理时序图（query_sequence.png）
+- 图 4.4 离线建库流程图（ingest_flow.png）
+- 图 4.5 混合检索与重排序流程图（hybrid_search.png）
+- 图 4.6 STT 线程协同时序图（stt_threading.png）
+- 图 4.7 文本缓冲与 TTS 触发图（tts_buffer.png）
+- 图 4.8 打断传播流程图（interrupt_flow.png）
 
 DOT 源文件与 PNG 一并保存到 thesis/figures/。
 """
@@ -143,6 +149,28 @@ def fig_streaming_dataflow():
     render(g, 'fig_3_3_streaming_dataflow')
 
 
+def fig_sched_model():
+    g = Digraph('sched_model', engine='dot')
+    g.attr(rankdir='LR', **COMMON_ATTR, splines='polyline')
+    g.attr('node', shape='box', style='filled,rounded',
+           fontname=CN_FONT, fontsize='11')
+
+    g.node('front', '浏览器前端\n录音/播放/状态展示', fillcolor='#FFE0B2')
+    g.node('loop', '主事件循环\nWebSocket / Pipeline / LLM', fillcolor='#BBDEFB')
+    g.node('stt', 'STT 工作线程\nstart / stop / SDK 调用', fillcolor='#C8E6C9')
+    g.node('tts', 'TTS 回调线程\nPCM 回传', fillcolor='#F8BBD0')
+    g.node('bridge', '线程安全投递\ncall_soon_threadsafe', fillcolor='#FFF59D')
+
+    g.edge('front', 'loop', label='音频 / 文本 / 控制指令')
+    g.edge('loop', 'stt', label='阻塞识别操作')
+    g.edge('tts', 'bridge', label='音频回调')
+    g.edge('stt', 'bridge', label='识别结果')
+    g.edge('bridge', 'loop', label='回到主流程')
+    g.edge('loop', 'front', label='文本 / 音频下发')
+
+    render(g, 'fig_3_4_sched_model')
+
+
 def fig_system_arch():
     g = Digraph('system_arch', engine='dot')
     g.attr(rankdir='TB', **COMMON_ATTR, compound='true', nodesep='0.35')
@@ -268,11 +296,148 @@ def fig_query_sequence():
     render(g, 'fig_4_3_query_sequence')
 
 
+def fig_ingest_flow():
+    g = Digraph('ingest_flow', engine='dot')
+    g.attr(rankdir='LR', **COMMON_ATTR, splines='polyline')
+    g.attr('node', shape='box', style='filled,rounded',
+           fontname=CN_FONT, fontsize='11')
+
+    g.node('pdf', '原始 PDF 手册', fillcolor='#FFE0B2')
+    g.node('img', '页面图像化', fillcolor='#FFF3E0')
+    g.node('ocr', '版面分析与 OCR', fillcolor='#E3F2FD')
+    g.node('clean', '文本清洗', fillcolor='#E8F5E9')
+    g.node('split', '段落切分与长句拆分', fillcolor='#E8F5E9')
+    g.node('meta', '章节/页码元数据提取', fillcolor='#F3E5F5')
+    g.node('enrich', '上下文增强文本', fillcolor='#FCE4EC')
+    g.node('embed', '向量化嵌入', fillcolor='#E1F5FE')
+    g.node('faiss', 'FAISS 索引', fillcolor='#D1F2D6')
+    g.node('bm25', 'BM25 索引', fillcolor='#D1F2D6')
+    g.node('docs', 'documents.json', fillcolor='#D1C4E9')
+
+    g.edge('pdf', 'img')
+    g.edge('img', 'ocr')
+    g.edge('ocr', 'clean')
+    g.edge('clean', 'split')
+    g.edge('split', 'meta')
+    g.edge('split', 'enrich')
+    g.edge('meta', 'docs')
+    g.edge('enrich', 'embed')
+    g.edge('embed', 'faiss')
+    g.edge('split', 'bm25')
+
+    render(g, 'fig_4_4_ingest_flow')
+
+
+def fig_hybrid_search():
+    g = Digraph('hybrid_search', engine='dot')
+    g.attr(rankdir='LR', **COMMON_ATTR, splines='polyline')
+    g.attr('node', shape='box', style='filled,rounded',
+           fontname=CN_FONT, fontsize='11')
+
+    g.node('q', '用户问题', fillcolor='#FFE0B2')
+    g.node('rw', '查询改写', fillcolor='#FFF3E0')
+    g.node('dense', 'Dense 检索\nFAISS', fillcolor='#E3F2FD')
+    g.node('sparse', 'Sparse 检索\nBM25', fillcolor='#E8F5E9')
+    g.node('rrf', 'RRF 融合', fillcolor='#F3E5F5')
+    g.node('filter', '元数据过滤', fillcolor='#FCE4EC')
+    g.node('rerank', '交叉编码器重排序', fillcolor='#FFEBEE')
+    g.node('topk', 'Top-K 证据片段', fillcolor='#D1F2D6')
+    g.node('llm', 'LLM 上下文', fillcolor='#DCE775')
+
+    g.edge('q', 'rw')
+    g.edge('rw', 'dense')
+    g.edge('rw', 'sparse')
+    g.edge('dense', 'rrf')
+    g.edge('sparse', 'rrf')
+    g.edge('rrf', 'filter')
+    g.edge('filter', 'rerank')
+    g.edge('rerank', 'topk')
+    g.edge('topk', 'llm')
+
+    render(g, 'fig_4_5_hybrid_search')
+
+
+def fig_stt_threading():
+    g = Digraph('stt_threading', engine='dot')
+    g.attr(rankdir='LR', **COMMON_ATTR, splines='polyline')
+    g.attr('node', shape='box', style='filled,rounded',
+           fontname=CN_FONT, fontsize='11')
+
+    g.node('ui', '浏览器', fillcolor='#FFE0B2')
+    g.node('ws', 'WebSocket 主事件循环', fillcolor='#E3F2FD')
+    g.node('thread', '识别线程\nstart()/stop()', fillcolor='#E8F5E9')
+    g.node('sdk', 'NLS SDK 回调线程', fillcolor='#F3E5F5')
+    g.node('pipe', '查询处理流程', fillcolor='#FFF3E0')
+
+    g.edge('ui', 'ws', label='start_recording / audio')
+    g.edge('ws', 'thread', label='创建/启动')
+    g.edge('thread', 'sdk', label='on_result_changed / on_sentence_end')
+    g.edge('sdk', 'ws', label='call_soon_threadsafe')
+    g.edge('ws', 'pipe', label='final text')
+    g.edge('ws', 'ui', label='stt_partial / stt_final')
+
+    render(g, 'fig_4_6_stt_threading')
+
+
+def fig_tts_buffer():
+    g = Digraph('tts_buffer', engine='dot')
+    g.attr(rankdir='LR', **COMMON_ATTR, splines='polyline')
+    g.attr('node', shape='box', style='filled,rounded',
+           fontname=CN_FONT, fontsize='11')
+
+    g.node('llm', 'LLM 流式文本', fillcolor='#FFECB3')
+    g.node('buf', '文本缓冲区\n标点或 15 字触发', fillcolor='#FFF3E0')
+    g.node('tts', 'TTS streaming_call', fillcolor='#FCE4EC')
+    g.node('cb', '_TtsCallback\n回调线程', fillcolor='#E1F5FE')
+    g.node('audio', 'AudioBuffer 批量发送', fillcolor='#E8F5E9')
+    g.node('ws', 'WebSocket 下行', fillcolor='#E3F2FD')
+    g.node('play', '前端音频播放', fillcolor='#D1F2D6')
+
+    g.edge('llm', 'buf', label='chunk')
+    g.edge('buf', 'tts', label='flush')
+    g.edge('tts', 'cb', label='PCM')
+    g.edge('cb', 'audio', label='append_sync')
+    g.edge('audio', 'ws')
+    g.edge('ws', 'play')
+
+    render(g, 'fig_4_7_tts_buffer')
+
+
+def fig_interrupt_flow():
+    g = Digraph('interrupt_flow', engine='dot')
+    g.attr(rankdir='LR', **COMMON_ATTR, splines='polyline')
+    g.attr('node', shape='box', style='filled,rounded',
+           fontname=CN_FONT, fontsize='11')
+
+    g.node('user', '用户打断 / 新输入', fillcolor='#FFE0B2')
+    g.node('gen', 'query_generation + 1', fillcolor='#FFF3E0')
+    g.node('pipe', 'pipeline.interrupt()', fillcolor='#E3F2FD')
+    g.node('tts', 'TTS cancel()', fillcolor='#FCE4EC')
+    g.node('buf', 'AudioBuffer.clear()', fillcolor='#E8F5E9')
+    g.node('ui', '前端收到 tts_interrupted', fillcolor='#D1F2D6')
+    g.node('stt', '旧 STT / 旧回答失效', fillcolor='#E1F5FE')
+
+    g.edge('user', 'gen')
+    g.edge('gen', 'pipe')
+    g.edge('pipe', 'tts')
+    g.edge('pipe', 'buf')
+    g.edge('pipe', 'stt')
+    g.edge('pipe', 'ui')
+
+    render(g, 'fig_4_8_interrupt_flow')
+
+
 if __name__ == '__main__':
     fig_usecase()
     fig_four_layer()
     fig_streaming_dataflow()
+    fig_sched_model()
     fig_system_arch()
     fig_module_deps()
     fig_query_sequence()
+    fig_ingest_flow()
+    fig_hybrid_search()
+    fig_stt_threading()
+    fig_tts_buffer()
+    fig_interrupt_flow()
     print('\n全部图已生成到 thesis/figures/')
