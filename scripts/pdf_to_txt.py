@@ -2,6 +2,7 @@
 import os
 import sys
 import argparse
+import re
 import cv2
 from pdf2image import convert_from_path
 from paddlex import create_model
@@ -24,6 +25,7 @@ LAYOUT_MODEL_DIR = "/home/max-rayyy/PDF_models/PP-DocLayout_plus-L_infer"
 OCR_DET_MODEL_DIR = "/home/max-rayyy/PDF_models/PP-OCRv5_server_det_infer"
 OCR_REC_MODEL_DIR = "/home/max-rayyy/PDF_models/PP-OCRv5_server_rec_infer"
 BATCH_SIZE = 50
+PAGE_MARKER_RE = re.compile(r"^===== 第 (\d+) 页 =====$")
 
 
 def init_models():
@@ -67,6 +69,20 @@ def iter_page_batches(first_page, last_page, batch_size=BATCH_SIZE):
         end = min(start + batch_size - 1, last_page)
         yield start, end
         start = end + 1
+
+
+def detect_last_processed_page(output_text_path):
+    """检测输出 txt 中最后一个已完成的页码。找不到则返回 0。"""
+    if not os.path.exists(output_text_path):
+        return 0
+
+    last_page = 0
+    with open(output_text_path, "r", encoding="utf-8") as f:
+        for line in f:
+            match = PAGE_MARKER_RE.match(line.strip())
+            if match:
+                last_page = int(match.group(1))
+    return last_page
 
 
 def sort_text_blocks(blocks):
@@ -168,15 +184,33 @@ def main():
     if not args.append and os.path.exists(args.output):
         os.remove(args.output)
 
+    effective_first_page = args.first_page
+    if args.append:
+        last_processed_page = detect_last_processed_page(args.output)
+        if last_processed_page > 0:
+            effective_first_page = max(args.first_page, last_processed_page + 1)
+            print(f"检测到现有输出已处理到第 {last_processed_page} 页")
+            if effective_first_page != args.first_page:
+                print(f"自动续跑：起始页从第 {args.first_page} 页调整为第 {effective_first_page} 页")
+        else:
+            print("追加模式下未检测到历史页码，将从指定起始页开始处理")
+
+    if effective_first_page > args.last_page:
+        print(
+            f"无需继续处理：现有输出已覆盖到第 {args.last_page} 页或更后 "
+            f"（本次有效起始页为第 {effective_first_page} 页）"
+        )
+        return
+
     print("初始化模型...")
     layout_model, ocr_model = init_models()
 
     print(f"PDF: {args.pdf}")
-    print(f"页码范围: {args.first_page} - {args.last_page}")
+    print(f"页码范围: {effective_first_page} - {args.last_page}")
     print(f"内部批次大小: {BATCH_SIZE} 页")
 
     for batch_first_page, batch_last_page in iter_page_batches(
-            args.first_page, args.last_page, BATCH_SIZE):
+            effective_first_page, args.last_page, BATCH_SIZE):
         print(f"\n处理批次: 第 {batch_first_page} 页 - 第 {batch_last_page} 页")
         process_page_batch(
             layout_model=layout_model,
