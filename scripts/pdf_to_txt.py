@@ -7,20 +7,23 @@ from pdf2image import convert_from_path
 from paddlex import create_model
 from paddleocr import PaddleOCR
 
+# 兼容不同版本 PaddleX 的模型源检查开关
 os.environ["DISABLE_MODEL_SOURCE_CHECK"] = "True"
+os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 # =========================
 # 默认配置
 # =========================
-DEFAULT_PDF_PATH = "/home/zhidong_huang/knowledges/data.pdf"
-DEFAULT_OUTPUT_PATH = os.path.join(PROJECT_ROOT, "data/txt/full_text.txt")
+DEFAULT_PDF_PATH = "/home/max-rayyy/knowledges/飞机客舱设施与维修.pdf"
+DEFAULT_OUTPUT_PATH = os.path.join(PROJECT_ROOT, "data/txt/飞机客舱设施与维修.txt")
 PAGE_IMAGE_DIR = os.path.join(PROJECT_ROOT, "data/figures/pages")
 
-LAYOUT_MODEL_DIR = "/home/zhidong_huang/PDF_models/PP-DocLayout_plus-L_infer"
-OCR_DET_MODEL_DIR = "/home/zhidong_huang/PDF_models/PP-OCRv5_server_det_infer"
-OCR_REC_MODEL_DIR = "/home/zhidong_huang/PDF_models/PP-OCRv5_server_rec_infer"
+LAYOUT_MODEL_DIR = "/home/max-rayyy/PDF_models/PP-DocLayout_plus-L_infer"
+OCR_DET_MODEL_DIR = "/home/max-rayyy/PDF_models/PP-OCRv5_server_det_infer"
+OCR_REC_MODEL_DIR = "/home/max-rayyy/PDF_models/PP-OCRv5_server_rec_infer"
+BATCH_SIZE = 50
 
 
 def init_models():
@@ -55,6 +58,15 @@ def pdf_to_images(pdf_path, output_dir, first_page, last_page, dpi=300):
         img.save(path, "PNG")
         image_infos.append((path, page_num))
     return image_infos
+
+
+def iter_page_batches(first_page, last_page, batch_size=BATCH_SIZE):
+    """按固定批次切分页码区间，降低一次性渲染的内存压力。"""
+    start = first_page
+    while start <= last_page:
+        end = min(start + batch_size - 1, last_page)
+        yield start, end
+        start = end + 1
 
 
 def sort_text_blocks(blocks):
@@ -116,6 +128,24 @@ def process_page(layout_model, ocr_model, image_path, page_num, output_text_path
     return page_lines
 
 
+def process_page_batch(layout_model, ocr_model, pdf_path, output_dir,
+                       output_text_path, batch_first_page, batch_last_page, dpi):
+    """处理一个页码批次，批次结束后清理生成的临时页面图片。"""
+    image_infos = pdf_to_images(
+        pdf_path, output_dir, batch_first_page, batch_last_page, dpi
+    )
+
+    for image_path, page_num in image_infos:
+        print(f"处理第 {page_num} 页")
+        try:
+            process_page(layout_model, ocr_model, image_path, page_num, output_text_path)
+        except Exception as e:
+            print(f"第 {page_num} 页失败：{e}")
+        finally:
+            if os.path.exists(image_path):
+                os.remove(image_path)
+
+
 def main():
     parser = argparse.ArgumentParser(description="PDF 文本抽取（Layout + OCR）")
     parser.add_argument("--pdf", default=DEFAULT_PDF_PATH, help="PDF 文件路径")
@@ -125,6 +155,11 @@ def main():
     parser.add_argument("--dpi", type=int, default=300, help="渲染 DPI")
     parser.add_argument("--append", action="store_true", help="追加模式，不删除已有文件")
     args = parser.parse_args()
+
+    if args.first_page < 1:
+        raise ValueError("起始页码必须大于等于 1")
+    if args.last_page < args.first_page:
+        raise ValueError("结束页码不能小于起始页码")
 
     os.makedirs(PAGE_IMAGE_DIR, exist_ok=True)
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
@@ -138,17 +173,21 @@ def main():
 
     print(f"PDF: {args.pdf}")
     print(f"页码范围: {args.first_page} - {args.last_page}")
+    print(f"内部批次大小: {BATCH_SIZE} 页")
 
-    image_infos = pdf_to_images(
-        args.pdf, PAGE_IMAGE_DIR, args.first_page, args.last_page, args.dpi
-    )
-
-    for image_path, page_num in image_infos:
-        print(f"处理第 {page_num} 页")
-        try:
-            process_page(layout_model, ocr_model, image_path, page_num, args.output)
-        except Exception as e:
-            print(f"第 {page_num} 页失败：{e}")
+    for batch_first_page, batch_last_page in iter_page_batches(
+            args.first_page, args.last_page, BATCH_SIZE):
+        print(f"\n处理批次: 第 {batch_first_page} 页 - 第 {batch_last_page} 页")
+        process_page_batch(
+            layout_model=layout_model,
+            ocr_model=ocr_model,
+            pdf_path=args.pdf,
+            output_dir=PAGE_IMAGE_DIR,
+            output_text_path=args.output,
+            batch_first_page=batch_first_page,
+            batch_last_page=batch_last_page,
+            dpi=args.dpi,
+        )
 
     print(f"\n文本抽取完成：{args.output}")
 
