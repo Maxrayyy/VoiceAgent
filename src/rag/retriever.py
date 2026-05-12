@@ -122,10 +122,9 @@ class DocumentStore:
         return self._bm25.search(query, top_k=top_k)
 
     def _hybrid_search(self, query: str, top_k: int) -> list[dict]:
-        """混合检索：RRF 融合稠密 + 稀疏结果"""
-        n_candidates = top_k * 4
-        dense_results = self._dense_search(query, n_candidates)
-        sparse_results = self._sparse_search(query, n_candidates)
+        """混合检索：两路各召回 top_k 个候选，再做 RRF 融合"""
+        dense_results = self._dense_search(query, top_k)
+        sparse_results = self._sparse_search(query, top_k)
 
         if not sparse_results:
             return dense_results[:top_k]
