@@ -5,6 +5,55 @@ import re
 
 logger = logging.getLogger(__name__)
 
+_DIRECTORY_HEADINGS = {"目录", "教材目录"}
+_TOC_LINE_PATTERN = re.compile(
+    r"^(?:第\s*\d+\s*章|第[一二三四五六七八九十百]+部分|\d+(?:\.\d+){0,3})"
+    r".*(?:\.{3,}|…{2,}|·{3,}).*(?:\d+|[IVXLCDM]+)\s*$",
+    re.IGNORECASE,
+)
+
+
+def sanitize_heading_text(text: str) -> str:
+    """清洗章节标题，移除目录引导点、尾随页码与 OCR 混入的页码前缀。"""
+    if not text:
+        return ""
+
+    cleaned = text.strip()
+    cleaned = re.sub(r"^\d+\s*(?=第\s*\d+\s*章)", "", cleaned)
+    cleaned = re.sub(r"(?:\.{3,}|…{2,}|·{3,}).*$", "", cleaned)
+    cleaned = re.sub(r"\s+(?:\d+|[IVXLCDM]+)\s*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^第\s*(\d+)\s*章", r"第\1章", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip()
+
+
+def is_toc_like_line(line: str) -> bool:
+    """判断单行文本是否像目录条目。"""
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if stripped in _DIRECTORY_HEADINGS:
+        return True
+    return bool(_TOC_LINE_PATTERN.match(stripped))
+
+
+def is_toc_like_content(text: str) -> bool:
+    """判断一段文本是否为目录型内容。"""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return False
+
+    if lines[0] in _DIRECTORY_HEADINGS:
+        return True
+
+    toc_like_lines = sum(1 for line in lines if is_toc_like_line(line))
+    if toc_like_lines >= 3:
+        return True
+
+    return toc_like_lines >= max(2, len(lines) // 2) and any(
+        leader in text for leader in ("...", "……", "................................................................", "···")
+    )
+
 
 def clean_text(text: str) -> str:
     """清理文本：去除页码标记等无用信息"""
@@ -45,7 +94,7 @@ def split_by_paragraph(text: str, min_chunk_size: int = 300, max_chunk_size: int
 
     # 按段落分割（双换行或更多）
     paragraphs = re.split(r'\n\n+', text)
-    paragraphs = [p.strip() for p in paragraphs if p.strip()]
+    paragraphs = [p.strip() for p in paragraphs if p.strip() and not is_toc_like_content(p)]
 
     chunks = []
     current_chunk = ""
@@ -110,7 +159,7 @@ def load_txt_with_metadata(text: str, source: str, min_chunk_size: int = 300, ma
     """
     # 正则模式
     page_pattern = re.compile(r'={3,}\s*第\s*(\d+)\s*页\s*={3,}')
-    chapter_pattern = re.compile(r'^(第\d+章.+)$')
+    chapter_pattern = re.compile(r'^(?:\d+\s*)?(第\s*\d+\s*章.+)$')
     section_pattern = re.compile(r'^(\d+\.\d+(?:\.\d+)?)')
 
     # 第一步：扫描原始文本每一行，构建字符位置到元数据的映射
@@ -129,14 +178,16 @@ def load_txt_with_metadata(text: str, source: str, min_chunk_size: int = 300, ma
             current_page = int(page_match.group(1))
 
         # 检查章节标记（整行匹配）
-        chapter_match = chapter_pattern.match(line.strip())
-        if chapter_match:
-            current_chapter = chapter_match.group(1).strip()
+        line_stripped = line.strip()
+        if not is_toc_like_line(line_stripped):
+            chapter_match = chapter_pattern.match(line_stripped)
+            if chapter_match:
+                current_chapter = sanitize_heading_text(chapter_match.group(1))
 
-        # 检查小节标记（行首匹配）
-        section_match = section_pattern.match(line.strip())
-        if section_match:
-            current_section = section_match.group(1)
+            # 检查小节标记（行首匹配）
+            section_match = section_pattern.match(line_stripped)
+            if section_match:
+                current_section = section_match.group(1)
 
         # 为这一行的每个字符记录元数据
         for i in range(len(line) + 1):  # +1 for newline
@@ -152,7 +203,7 @@ def load_txt_with_metadata(text: str, source: str, min_chunk_size: int = 300, ma
 
     # 按段落分割
     paragraphs = re.split(r'\n\n+', cleaned_text)
-    paragraphs = [p.strip() for p in paragraphs if p.strip()]
+    paragraphs = [p.strip() for p in paragraphs if p.strip() and not is_toc_like_content(p)]
 
     chunks = []
     current_chunk = ""

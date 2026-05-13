@@ -55,3 +55,27 @@ class TestQueryRewriter:
             mock_llm.return_value = ""
             result = await rewriter.rewrite("PSU是什么", [])
             assert result == "PSU是什么"
+
+    @pytest.mark.anyio
+    async def test_ambiguous_followup_uses_history_fallback_when_llm_is_still_ambiguous(self, rewriter):
+        """追问仍然模糊时，应回退到带上文的检索查询"""
+        history = [
+            {"role": "user", "content": "液压系统压力不足"},
+            {"role": "assistant", "content": "建议检查液压泵、油量和滤芯状态。"},
+        ]
+        with patch.object(rewriter, "_call_llm", new_callable=AsyncMock) as mock_llm:
+            mock_llm.return_value = "这些都正常怎么办"
+            result = await rewriter.rewrite("这些都正常怎么办", history)
+            assert result == "液压系统压力不足，这些都正常怎么办"
+
+    @pytest.mark.anyio
+    async def test_ambiguous_followup_uses_history_fallback_when_llm_fails(self, rewriter):
+        """追问改写失败时，应至少保留最近一轮用户上下文"""
+        history = [
+            {"role": "user", "content": "液压系统压力不足"},
+            {"role": "assistant", "content": "建议检查液压泵、油量和滤芯状态。"},
+        ]
+        with patch.object(rewriter, "_call_llm", new_callable=AsyncMock) as mock_llm:
+            mock_llm.side_effect = Exception("API error")
+            result = await rewriter.rewrite("这些都正常怎么办", history)
+            assert result == "液压系统压力不足，这些都正常怎么办"

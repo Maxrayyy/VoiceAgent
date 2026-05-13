@@ -629,7 +629,7 @@ function renderSources() {
     list.innerHTML = currentSources.map((s) => {
         const title = escapeHtml(s.source || '未知来源');
         const snippet = escapeHtml((s.content || '').slice(0, 160));
-        const score = typeof s.score === 'number' ? `${(s.score * 100).toFixed(1)}%` : '';
+        const score = typeof s.display_score === 'number' ? `相关度 ${(s.display_score * 100).toFixed(1)}%` : '';
         return `
             <div class="source-item">
                 <div>${snippet}</div>

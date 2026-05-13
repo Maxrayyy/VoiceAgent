@@ -8,13 +8,52 @@ import faiss
 import numpy as np
 
 from src.rag.search.bm25_index import BM25Index
-from src.rag.document_loader import load_documents
+from src.rag.document_loader import is_toc_like_content, load_documents
 from src.rag.embeddings import EmbeddingClient
 from src.rag.search.reranker import Reranker
 
 logger = logging.getLogger(__name__)
 
 INDEX_DIR = os.path.join(os.path.dirname(__file__), "../../data/index")
+DISPLAY_SCORE_KEYS = ("rerank_score", "rrf_score", "score")
+
+
+def compute_display_scores(results: list[dict]) -> list[float]:
+    """
+    将原始检索分数转换为稳定的相对相关度。
+
+    优先使用 rerank 分数，其次 RRF，再退回原始 score。
+    返回值在 0~1 之间，总和约为 1，适合前端显示百分比。
+    """
+    if not results:
+        return []
+
+    score_key = next(
+        (
+            key for key in DISPLAY_SCORE_KEYS
+            if any(isinstance(doc.get(key), (int, float)) for doc in results)
+        ),
+        None,
+    )
+
+    if score_key is None:
+        weights = [len(results) - idx for idx in range(len(results))]
+    else:
+        raw_scores = [float(doc.get(score_key, 0.0)) for doc in results]
+        min_score = min(raw_scores)
+        if min_score < 0:
+            raw_scores = [score - min_score for score in raw_scores]
+
+        if not any(score > 0 for score in raw_scores):
+            weights = [len(results) - idx for idx in range(len(results))]
+        else:
+            weights = raw_scores
+
+    total = sum(weights)
+    if total <= 0:
+        return [0.0 for _ in results]
+
+    return [weight / total for weight in weights]
 
 
 def reciprocal_rank_fusion(
@@ -180,6 +219,13 @@ class DocumentStore:
         else:
             raise ValueError(f"未知检索模式: {mode}")
 
+        non_toc_results = [r for r in results if not is_toc_like_content(r.get("content", ""))]
+        if non_toc_results:
+            filtered_count = len(results) - len(non_toc_results)
+            if filtered_count:
+                logger.info("过滤目录型候选 %d 条: %s", filtered_count, query[:50])
+            results = non_toc_results
+
         # 元数据过滤（后过滤）
         if filters:
             results = [r for r in results if self._match_filters(r, filters)]
@@ -187,7 +233,10 @@ class DocumentStore:
         if rerank and results:
             results = self._reranker.rerank(query, results, top_n=top_k)
 
-        return results[:top_k]
+        results = results[:top_k]
+        for doc, display_score in zip(results, compute_display_scores(results)):
+            doc["display_score"] = display_score
+        return results
 
     def save(self, path: Optional[str] = None) -> None:
         """保存索引和文档元数据到磁盘"""

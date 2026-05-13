@@ -26,6 +26,11 @@ class QueryRewriter:
 
     # 无历史时，查询长度超过此阈值则跳过改写
     SKIP_THRESHOLD = 15
+    AMBIGUOUS_REFERENCES = (
+        "它", "这个", "那个", "这些", "那些", "该", "上述", "上面", "前面", "这里",
+        "这种", "这种情况", "这类", "这项", "这一项", "都正常", "怎么办", "怎么处理",
+        "怎么排查", "咋办", "然后呢", "接下来呢", "还有呢", "下一步呢",
+    )
 
     def __init__(self, model: Optional[str] = None):
         self._model = model or "qwen-turbo"
@@ -53,12 +58,14 @@ class QueryRewriter:
         if not history and len(query) > self.SKIP_THRESHOLD:
             return query
 
+        contextual_query = self._build_contextual_fallback(query, history)
+
         try:
             result = await self._call_llm(query, history)
-            return result if result else query
+            return self._select_best_result(original_query=query, rewritten_query=result, fallback_query=contextual_query)
         except Exception as e:
-            logger.warning("查询改写失败，使用原始查询: %s", e)
-            return query
+            logger.warning("查询改写失败，使用兜底查询: %s", e)
+            return contextual_query
 
     async def _call_llm(self, query: str, history: list[dict]) -> str:
         """调用 LLM 进行查询改写"""
@@ -79,3 +86,40 @@ class QueryRewriter:
             max_tokens=80,
         )
         return resp.choices[0].message.content.strip()
+
+    def _build_contextual_fallback(self, query: str, history: list[dict]) -> str:
+        """为模糊追问构造本地兜底检索查询。"""
+        if not history or not self._needs_history_context(query):
+            return query
+
+        last_user_query = self._get_last_user_query(history)
+        if not last_user_query or last_user_query == query:
+            return query
+
+        return f"{last_user_query}，{query}"
+
+    def _needs_history_context(self, query: str) -> bool:
+        """判断当前查询是否依赖上文指代。"""
+        normalized = query.strip()
+        if len(normalized) <= 8:
+            return True
+        return any(token in normalized for token in self.AMBIGUOUS_REFERENCES)
+
+    @staticmethod
+    def _get_last_user_query(history: list[dict]) -> str:
+        """获取最近一条用户问题。"""
+        for item in reversed(history):
+            if item.get("role") == "user" and item.get("content", "").strip():
+                return item["content"].strip()
+        return ""
+
+    def _select_best_result(self, original_query: str, rewritten_query: str, fallback_query: str) -> str:
+        """优先使用有效改写；模糊改写时回退到带上文的检索查询。"""
+        candidate = (rewritten_query or "").strip()
+        if not candidate:
+            return fallback_query
+
+        if fallback_query != original_query and self._needs_history_context(candidate):
+            return fallback_query
+
+        return candidate

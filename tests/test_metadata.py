@@ -1,7 +1,7 @@
 """元数据提取与过滤单元测试"""
 import pytest
 
-from src.rag.document_loader import load_txt_with_metadata
+from src.rag.document_loader import is_toc_like_content, load_txt_with_metadata
 
 
 class TestMetadataExtraction:
@@ -108,6 +108,33 @@ class TestMetadataExtraction:
             assert "page" in doc
             assert "content" in doc
             assert "source" in doc
+
+    def test_toc_chapter_is_ignored_and_real_heading_is_cleaned(self):
+        """目录行不应污染章节元数据，正文章节标题应清洗后保留"""
+        text = (
+            "===== 第 6 页 =====\n"
+            "目录\n"
+            "第4章航线可更换件拆装...........................................................................................................412\n"
+            "4.1气源、液压、灯光、发动机点火系统部件拆装........................................................412\n\n"
+            "===== 第 420 页 =====\n"
+            "412第4章航线可更换件拆装\n\n"
+            "4.1气源、液压、灯光、发动机点火系统部件拆装\n\n"
+            "维修人员应熟悉拆装部件流程，掌握拆装方法，严格按照手册要求执行航空器部件拆装工作。"
+            "以下是拆装过程中的通用原则，若维修手册中已列出明确要求，应依据手册施工。"
+        )
+        docs = load_txt_with_metadata(text, source="test.txt", min_chunk_size=20, max_chunk_size=400)
+        assert docs[0]["chapter"] == "第4章航线可更换件拆装"
+        assert not is_toc_like_content(docs[0]["content"])
+
+    def test_is_toc_like_content_detects_directory_chunks(self):
+        """目录型 chunk 应被识别出来，便于检索阶段过滤"""
+        toc_text = (
+            "目录\n"
+            "第4章航线可更换件拆装...........................................................................................................412\n"
+            "4.1气源、液压、灯光、发动机点火系统部件拆装........................................................412\n"
+            "4.1.1气源系统部件-发动机高压级活门拆装..............................................................412"
+        )
+        assert is_toc_like_content(toc_text) is True
 
 
 from src.rag.retriever import DocumentStore

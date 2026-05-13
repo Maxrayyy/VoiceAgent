@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import logging
+import re
 import threading
 from pathlib import Path
 
@@ -32,6 +33,18 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 document_store = DocumentStore()
 document_store.load()
 logger.info("Document store loaded: %d documents", document_store.count)
+
+
+def sanitize_source_heading(text: str) -> str:
+    """清洗来源标题中的目录引导点、尾页码与 OCR 前缀。"""
+    if not text:
+        return ""
+    cleaned = text.strip()
+    cleaned = re.sub(r"^\d+\s*(?=第\s*\d+\s*章)", "", cleaned)
+    cleaned = re.sub(r"(?:\.{3,}|…{2,}|·{3,}).*$", "", cleaned)
+    cleaned = re.sub(r"\s+(?:\d+|[IVXLCDM]+)\s*$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip()
 
 
 @app.get("/")
@@ -160,16 +173,21 @@ async def websocket_endpoint(ws: WebSocket):
                     def format_source(s):
                         """格式化来源展示：文档名 + 章节页码"""
                         name = s.get("source", "未知").replace(".txt", "")
-                        if s.get("chapter"):
+                        chapter = sanitize_source_heading(s.get("chapter", ""))
+                        if chapter:
                             section = f" §{s['section']}" if s.get("section") else ""
                             page = f" (第{s['page']}页)" if s.get("page") else ""
-                            return f"{name} - {s['chapter']}{section}{page}"
+                            return f"{name} - {chapter}{section}{page}"
                         return name
 
                     send_json_sync({
                         "type": "rag_sources",
                         "sources": [
-                            {"content": s["content"][:200], "source": format_source(s), "score": s["score"]}
+                            {
+                                "content": s["content"][:200],
+                                "source": format_source(s),
+                                "display_score": s.get("display_score"),
+                            }
                             for s in sources
                         ],
                     })
