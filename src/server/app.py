@@ -2,7 +2,6 @@ import asyncio
 import base64
 import json
 import logging
-import re
 import threading
 from pathlib import Path
 
@@ -13,6 +12,7 @@ from fastapi.responses import FileResponse
 from src.config import config
 from src.pipeline.controller import VoiceChatPipeline
 from src.rag.retriever import DocumentStore
+from src.server.source_format import format_source_label
 from src.stt.recognizer import StreamingRecognizer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -33,18 +33,6 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 document_store = DocumentStore()
 document_store.load()
 logger.info("Document store loaded: %d documents", document_store.count)
-
-
-def sanitize_source_heading(text: str) -> str:
-    """清洗来源标题中的目录引导点、尾页码与 OCR 前缀。"""
-    if not text:
-        return ""
-    cleaned = text.strip()
-    cleaned = re.sub(r"^\d+\s*(?=第\s*\d+\s*章)", "", cleaned)
-    cleaned = re.sub(r"(?:\.{3,}|…{2,}|·{3,}).*$", "", cleaned)
-    cleaned = re.sub(r"\s+(?:\d+|[IVXLCDM]+)\s*$", "", cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r"\s+", " ", cleaned)
-    return cleaned.strip()
 
 
 @app.get("/")
@@ -170,22 +158,12 @@ async def websocket_endpoint(ws: WebSocket):
                     audio_buffer.append_sync(data)
 
                 def on_sources(sources):
-                    def format_source(s):
-                        """格式化来源展示：文档名 + 章节页码"""
-                        name = s.get("source", "未知").replace(".txt", "")
-                        chapter = sanitize_source_heading(s.get("chapter", ""))
-                        if chapter:
-                            section = f" §{s['section']}" if s.get("section") else ""
-                            page = f" (第{s['page']}页)" if s.get("page") else ""
-                            return f"{name} - {chapter}{section}{page}"
-                        return name
-
                     send_json_sync({
                         "type": "rag_sources",
                         "sources": [
                             {
                                 "content": s["content"][:200],
-                                "source": format_source(s),
+                                "source": format_source_label(s),
                                 "display_score": s.get("display_score"),
                             }
                             for s in sources
