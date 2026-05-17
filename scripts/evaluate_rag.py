@@ -80,8 +80,8 @@ def generate_comparison_chart(results: list[dict], output_path: str):
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
                     f"{val:.3f}", ha="center", va="bottom", fontsize=9)
 
-    ax.set_ylabel("分数")
-    ax.set_title("RAG 检索质量对比")
+    ax.set_ylabel("Score")
+    ax.set_title("RAG Retrieval Quality Comparison")
     ax.set_xticks(list(x))
     ax.set_xticklabels(metrics_names)
     ax.set_ylim(0, 1.15)
@@ -102,11 +102,13 @@ def main():
     sub = parser.add_subparsers(dest="command")
 
     run_parser = sub.add_parser("run", help="运行单次评估")
+    run_parser.add_argument("--top-k", type=int, default=argparse.SUPPRESS, help="检索数量")
     run_parser.add_argument("--mode", default="dense", choices=["dense", "sparse", "hybrid"])
     run_parser.add_argument("--rerank", action="store_true")
     run_parser.add_argument("--label", required=True, help="本次评估的标签")
 
     compare_parser = sub.add_parser("compare", help="运行多配置对比评估")
+    compare_parser.add_argument("--top-k", type=int, default=argparse.SUPPRESS, help="检索数量")
 
     chart_parser = sub.add_parser("chart", help="从已有 JSON 结果生成对比图")
     chart_parser.add_argument("files", nargs="+", help="结果 JSON 文件路径")
