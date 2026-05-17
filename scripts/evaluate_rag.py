@@ -59,7 +59,7 @@ def generate_comparison_chart(results: list[dict], output_path: str):
     plt.rcParams["axes.unicode_minus"] = False
 
     labels = [r["label"] for r in results]
-    metrics_names = ["Hit Rate", "MRR", "nDCG"]
+    metrics_names = ["Hit Rate@5", "MRR@5", "nDCG@5"]
     metrics_data = []
     for r in results:
         hr_key = [k for k in r if k.startswith("hit_rate@")][0]
@@ -71,13 +71,18 @@ def generate_comparison_chart(results: list[dict], output_path: str):
     width = 0.8 / len(labels)
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    colors = ["#4C78A8", "#F58518", "#E45756", "#72B7B2", "#54A24B"]
+    grayscale_colors = ["#F2F2F2", "#BDBDBD", "#5C5C5C", "#8C8C8C", "#D9D9D9"]
+    hatches = ["//", "\\\\", "xx", "..", "--"]
     for i, (label, data) in enumerate(zip(labels, metrics_data)):
         offset = (i - len(labels) / 2 + 0.5) * width
         bars = ax.bar([xi + offset for xi in x], data, width,
-                      label=label, color=colors[i % len(colors)])
+                      label=label,
+                      color=grayscale_colors[i % len(grayscale_colors)],
+                      edgecolor="black",
+                      linewidth=0.8,
+                      hatch=hatches[i % len(hatches)])
         for bar, val in zip(bars, data):
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.015,
                     f"{val:.3f}", ha="center", va="bottom", fontsize=9)
 
     ax.set_ylabel("Score")
@@ -85,11 +90,11 @@ def generate_comparison_chart(results: list[dict], output_path: str):
     ax.set_xticks(list(x))
     ax.set_xticklabels(metrics_names)
     ax.set_ylim(0, 1.15)
-    ax.legend()
-    ax.grid(axis="y", alpha=0.3)
+    ax.legend(frameon=True)
+    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.6)
 
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"对比图已保存到 {output_path}")
 
