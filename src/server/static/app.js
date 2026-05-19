@@ -42,7 +42,7 @@ const SessionState = {
     IDLE: 'idle',              // 空闲
     LISTENING: 'listening',     // 正在监听用户
     PROCESSING: 'processing',   // AI 正在思考（RAG + LLM）
-    SPEAKING: 'speaking'        // AI 正在播报
+    RESPONDING: 'responding'    // AI 正在回答（文本展示、合成、预缓冲或播报）
 };
 let sessionState = SessionState.IDLE;
 
@@ -358,8 +358,8 @@ function monitorMicLevel() {
         }
         const avg = sum / analyserDataArray.length;
         micVolumeLevel = Math.min(0.9, Math.max(avg / 60, 0.02));
-        // 非播报状态下更新噪声基线
-        if (sessionState !== SessionState.SPEAKING) {
+        // 非回答状态下更新噪声基线
+        if (sessionState !== SessionState.RESPONDING) {
             vadNoiseBaseline += VAD_BASELINE_ALPHA * (avg - vadNoiseBaseline);
         }
         if (isRecording) {
@@ -476,7 +476,7 @@ function handleMessage(msg) {
             ttsIgnore = false;
             if (!aiResponding) {
                 // 新回复的第一个 chunk，重置预缓冲
-                sessionState = SessionState.SPEAKING;
+                sessionState = SessionState.RESPONDING;
                 ttsBuffering = true;
                 ttsPreBuffer = [];
                 ttsPreBufferSamples = 0;
