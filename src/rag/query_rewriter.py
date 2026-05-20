@@ -18,6 +18,7 @@ REWRITE_PROMPT = """你是飞机维修知识库的查询改写助手。将用户
 5. 如果原始查询已经足够清晰且无指代，原样返回即可
 6. 只输出改写后的查询，不要输出任何解释
 7. 只输出问题本身，绝对不要包含答案、解释或陈述性内容。例如历史对话有"经济舱座椅间距多少"，追问"那公务舱呢"应改写为"公务舱的座椅间距是多少"，而不是"公务舱座椅间距是32英寸"
+8. 如果用户说"这些都正常""都没问题""检查正常"等排除性反馈，应理解为继续追问下一步排查，不要机械拼接原句；例如上一轮问"液压系统压力不足"，追问"这些都正常"应改写为"液压系统压力不足且常规检查正常后应如何进一步排查？"
 """
 
 
@@ -30,6 +31,19 @@ class QueryRewriter:
         "它", "这个", "那个", "这些", "那些", "该", "上述", "上面", "前面", "这里",
         "这种", "这种情况", "这类", "这项", "这一项", "都正常", "怎么办", "怎么处理",
         "怎么排查", "咋办", "然后呢", "接下来呢", "还有呢", "下一步呢",
+    )
+    NORMAL_STATUS_TOKENS = (
+        "这些都正常", "这些正常", "那些都正常", "那些正常", "都正常", "均正常",
+        "检查正常", "检查都正常", "一切正常", "这些都没问题", "都没问题",
+        "没有问题", "没问题", "无异常", "未见异常",
+    )
+    NORMAL_STATUS_SUFFIXES = (
+        "", "了", "怎么办", "怎么处理", "如何处理", "下一步", "下一步呢",
+        "接下来呢", "然后呢",
+    )
+    QUESTION_SUFFIXES = (
+        "的原因是什么", "原因是什么", "是什么原因", "怎么回事", "怎么办",
+        "怎么处理", "如何处理", "怎么排查", "如何排查",
     )
 
     def __init__(self, model: Optional[str] = None):
@@ -96,6 +110,10 @@ class QueryRewriter:
         if not last_user_query or last_user_query == query:
             return query
 
+        if self._is_normal_status_followup(query):
+            issue = self._normalize_previous_issue(last_user_query)
+            return f"{issue}且常规检查正常后应如何进一步排查？"
+
         return f"{last_user_query}，{query}"
 
     def _needs_history_context(self, query: str) -> bool:
@@ -112,6 +130,30 @@ class QueryRewriter:
             if item.get("role") == "user" and item.get("content", "").strip():
                 return item["content"].strip()
         return ""
+
+    def _is_normal_status_followup(self, query: str) -> bool:
+        """判断用户是否只是反馈上一轮检查项均正常。"""
+        normalized = query.strip().rstrip("。！？!?，,；;")
+        normalized = "".join(normalized.split())
+        if len(normalized) > 12:
+            return False
+
+        for token in self.NORMAL_STATUS_TOKENS:
+            if normalized == token:
+                return True
+            for suffix in self.NORMAL_STATUS_SUFFIXES:
+                if suffix and normalized == f"{token}{suffix}":
+                    return True
+        return False
+
+    def _normalize_previous_issue(self, query: str) -> str:
+        """把上一轮问题压缩为适合继续排查的故障主题。"""
+        normalized = query.strip().rstrip("。！？!?，,；;")
+        for suffix in self.QUESTION_SUFFIXES:
+            if normalized.endswith(suffix):
+                normalized = normalized[: -len(suffix)]
+                break
+        return normalized.rstrip("的")
 
     def _select_best_result(self, original_query: str, rewritten_query: str, fallback_query: str) -> str:
         """优先使用有效改写；模糊改写时回退到带上文的检索查询。"""
