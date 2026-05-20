@@ -549,6 +549,7 @@ function showUserLive(text) {
     }
     const bubble = liveUserEl.querySelector('.bubble-card');
     bubble.textContent = text;
+    scrollDialogueToBottom();
 }
 
 function finalizeUserLive(text) {
@@ -566,6 +567,7 @@ function ensureAssistantStream() {
         streamingAssistantText = '';
         streamingAssistantEl = createBubble('assistant', '…');
         document.getElementById('dialogueCanvas').appendChild(streamingAssistantEl);
+        scrollDialogueToBottom();
     }
 }
 
@@ -573,6 +575,7 @@ function appendAssistantChunk(chunk) {
     if (!streamingAssistantEl) return;
     streamingAssistantText += chunk;
     streamingAssistantEl.querySelector('.bubble-card').textContent = streamingAssistantText;
+    scrollDialogueToBottom();
 }
 
 function finalizeAssistantStream() {
@@ -587,6 +590,8 @@ function finalizeAssistantStream() {
             if (dialogueLines.length > maxLines) {
                 dialogueLines = dialogueLines.slice(-maxLines);
                 renderLines();
+            } else {
+                scrollDialogueToBottom();
             }
         } else {
             el.remove();
@@ -609,6 +614,7 @@ function renderLines() {
         const row = createBubble(line.role, line.text);
         canvas.appendChild(row);
     });
+    scrollDialogueToBottom();
 }
 
 function createBubble(role, text) {
@@ -619,6 +625,14 @@ function createBubble(role, text) {
     bubble.textContent = text;
     row.appendChild(bubble);
     return row;
+}
+
+function scrollDialogueToBottom() {
+    const canvas = document.getElementById('dialogueCanvas');
+    if (!canvas) return;
+    requestAnimationFrame(() => {
+        canvas.scrollTop = canvas.scrollHeight;
+    });
 }
 
 function renderSources() {
