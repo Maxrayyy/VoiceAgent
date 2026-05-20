@@ -240,11 +240,19 @@ body {
     flex-direction: column;
     gap: 16px;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    overflow-anchor: none;
     padding-bottom: 24px;
     z-index: 1;
     /* 自定义滚动条 */
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 200, 224, 0.15) transparent;
+}
+
+.dialogue-bottom-anchor {
+    flex: 0 0 1px;
+    width: 100%;
+    pointer-events: none;
 }
 
 .dialogue-canvas::-webkit-scrollbar {

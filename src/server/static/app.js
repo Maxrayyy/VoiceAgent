@@ -545,7 +545,7 @@ function showUserLive(text) {
     if (!text) return;
     if (!liveUserEl) {
         liveUserEl = createBubble('user', '');
-        document.getElementById('dialogueCanvas').appendChild(liveUserEl);
+        appendDialogueElement(liveUserEl);
     }
     const bubble = liveUserEl.querySelector('.bubble-card');
     bubble.textContent = text;
@@ -566,7 +566,7 @@ function ensureAssistantStream() {
     if (!streamingAssistantEl) {
         streamingAssistantText = '';
         streamingAssistantEl = createBubble('assistant', '…');
-        document.getElementById('dialogueCanvas').appendChild(streamingAssistantEl);
+        appendDialogueElement(streamingAssistantEl);
         scrollDialogueToBottom();
     }
 }
@@ -614,6 +614,7 @@ function renderLines() {
         const row = createBubble(line.role, line.text);
         canvas.appendChild(row);
     });
+    ensureDialogueBottomAnchor(canvas);
     scrollDialogueToBottom();
 }
 
@@ -627,12 +628,46 @@ function createBubble(role, text) {
     return row;
 }
 
+function appendDialogueElement(element) {
+    const canvas = document.getElementById('dialogueCanvas');
+    if (!canvas) return;
+    ensureDialogueBottomAnchor(canvas);
+    const anchor = document.getElementById('dialogueBottomAnchor');
+    canvas.insertBefore(element, anchor);
+}
+
 function scrollDialogueToBottom() {
     const canvas = document.getElementById('dialogueCanvas');
     if (!canvas) return;
+    ensureDialogueBottomAnchor(canvas);
+
+    const scrollNow = () => {
+        canvas.scrollTop = canvas.scrollHeight - canvas.clientHeight;
+        const anchor = document.getElementById('dialogueBottomAnchor');
+        if (anchor) {
+            anchor.scrollIntoView({ block: 'end', inline: 'nearest' });
+        }
+    };
+
+    scrollNow();
     requestAnimationFrame(() => {
-        canvas.scrollTop = canvas.scrollHeight;
+        scrollNow();
+        requestAnimationFrame(scrollNow);
     });
+    setTimeout(scrollNow, 80);
+}
+
+function ensureDialogueBottomAnchor(canvas) {
+    if (!canvas) return;
+    let anchor = document.getElementById('dialogueBottomAnchor');
+    if (!anchor) {
+        anchor = document.createElement('div');
+        anchor.id = 'dialogueBottomAnchor';
+        anchor.className = 'dialogue-bottom-anchor';
+    }
+    if (anchor.parentElement !== canvas || anchor !== canvas.lastElementChild) {
+        canvas.appendChild(anchor);
+    }
 }
 
 function renderSources() {
