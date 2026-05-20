@@ -164,7 +164,6 @@ async def websocket_endpoint(ws: WebSocket):
                             {
                                 "content": s["content"][:200],
                                 "source": format_source_label(s),
-                                "display_score": s.get("display_score"),
                             }
                             for s in sources
                         ],
