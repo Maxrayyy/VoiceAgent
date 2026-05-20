@@ -48,14 +48,16 @@ let sessionState = SessionState.IDLE;
 
 // --- VAD 语音打断配置 ---
 const VAD_THRESHOLD_RATIO = 3.0;     // 音量超过噪声基线的倍数即触发
-const VAD_TRIGGER_FRAMES = 3;        // 连续超标帧数（约 150ms）
+const VAD_TRIGGER_FRAMES = 8;        // 连续超标帧数，降低 TTS 外放回采误触发概率
 const VAD_COOLDOWN_MS = 2000;        // 打断后冷却期（毫秒）
 const VAD_BASELINE_ALPHA = 0.05;     // 噪声基线平滑系数（越小越稳定）
+const BARGE_IN_GRACE_MS = 1200;      // TTS 实际播放开始后的自动打断保护窗口
 
 let vadNoiseBaseline = 2.0;          // 背景噪声基线（初始值）
 let vadConsecutiveFrames = 0;        // 连续超标帧计数
 let vadLastInterruptTime = 0;        // 上次打断时间
 let vadMonitoring = false;           // 是否正在 VAD 监测
+let ttsPlaybackStartedAt = 0;        // 本轮 TTS 实际开始播放时间
 
 // STT 会话管理，防止过期的识别结果触发查询
 let sttSessionId = 0;
@@ -128,7 +130,7 @@ function toggleRecordMode() {
     sttSuppressQuery = true;  // 抑制 STT 结果触发查询
 
     if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'interrupt' }));
+        sendInterrupt('mode_switch');
     }
     stopRecording(true); // discard=true，不触发后端查询
     resetTtsPlayback();
@@ -172,6 +174,9 @@ function updateModeUI() {
 
 function setAiResponding(responding) {
     aiResponding = responding;
+    if (!responding) {
+        ttsPlaybackStartedAt = 0;
+    }
     const btn = document.getElementById('interruptBtn');
     // 按钮始终可见，用 disabled 属性控制启用/禁用
     btn.classList.add('visible');
@@ -439,10 +444,6 @@ function handleMessage(msg) {
             if (msg.session_id && msg.session_id !== currentSttSession) {
                 break;
             }
-            // 持续监听模式下，用户说话自动打断当前播报
-            if (recordMode === 'continuous' && aiResponding && msg.text && msg.text.length > 3) {
-                interrupt();
-            }
             showUserLive(msg.text);
             break;
         case 'stt_final':
@@ -477,6 +478,7 @@ function handleMessage(msg) {
             if (!aiResponding) {
                 // 新回复的第一个 chunk，重置预缓冲
                 sessionState = SessionState.RESPONDING;
+                ttsPlaybackStartedAt = 0;
                 ttsBuffering = true;
                 ttsPreBuffer = [];
                 ttsPreBufferSamples = 0;
@@ -721,6 +723,10 @@ function playTtsAudio(base64Data) {
     const now = ttsCtx.currentTime;
     const scheduledTime = Math.max(now, nextStartTime);
     nextStartTime = scheduledTime + buffer.duration;
+    if (!ttsPlaybackStartedAt) {
+        const delayMs = Math.max(0, scheduledTime - now) * 1000;
+        ttsPlaybackStartedAt = Date.now() + delayMs;
+    }
 
     // 启动播放（预调度）
     source.start(scheduledTime);
@@ -806,6 +812,7 @@ function resetTtsPlayback() {
     nextStartTime = 0;
     ttsVolumeLevel = 0.02;
     ttsMonitoring = false;
+    ttsPlaybackStartedAt = 0;
     // 清空预缓冲
     ttsPreBuffer = [];
     ttsPreBufferSamples = 0;
@@ -838,17 +845,17 @@ function startVadMonitoring() {
             sum += Math.abs(analyserDataArray[i] - 128);
         }
         const avg = sum / analyserDataArray.length;
-        const threshold = Math.max(vadNoiseBaseline * VAD_THRESHOLD_RATIO, 5.0);
+        const threshold = getVadThreshold();
 
         if (avg > threshold) {
             vadConsecutiveFrames++;
             if (vadConsecutiveFrames >= VAD_TRIGGER_FRAMES) {
                 const now = Date.now();
-                if (now - vadLastInterruptTime > VAD_COOLDOWN_MS) {
+                if (canAutoInterrupt() && now - vadLastInterruptTime > VAD_COOLDOWN_MS) {
                     console.log('[VAD] 触发打断，音量:', avg.toFixed(2), '阈值:', threshold.toFixed(2));
                     vadLastInterruptTime = now;
                     vadMonitoring = false;
-                    interrupt();
+                    interrupt('vad');
                     return;
                 }
             }
@@ -861,24 +868,72 @@ function startVadMonitoring() {
     requestAnimationFrame(checkVad);
 }
 
+function getVadThreshold() {
+    return Math.max(vadNoiseBaseline * VAD_THRESHOLD_RATIO, 5.0);
+}
+
+function canAutoInterrupt() {
+    if (!aiResponding) {
+        return false;
+    }
+    return ttsPlaybackStartedAt > 0 && Date.now() - ttsPlaybackStartedAt >= BARGE_IN_GRACE_MS;
+}
+
 function stopVadMonitoring() {
     vadMonitoring = false;
     vadConsecutiveFrames = 0;
 }
 
-function interrupt() {
+function interrupt(reason = 'manual') {
     // 如果 AI 未在回复，不执行打断
     if (!aiResponding) {
+        logInterruptDebug(reason, 'ignored_not_responding');
         return;
     }
+
+    logInterruptDebug(reason, 'send');
 
     // 立即停止 TTS 播放
     resetTtsPlayback();
 
     if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'interrupt' }));
+        sendInterrupt(reason);
     }
     showToast('已发送打断指令');
+}
+
+function buildInterruptDebug(reason, action = 'send') {
+    return {
+        reason,
+        action,
+        recordMode,
+        sessionState,
+        aiResponding,
+        isRecording,
+        vadMonitoring,
+        vadConsecutiveFrames,
+        vadNoiseBaseline: Number(vadNoiseBaseline.toFixed(2)),
+        ttsPlaybackStartedAt,
+        ttsPlaybackElapsedMs: ttsPlaybackStartedAt ? Date.now() - ttsPlaybackStartedAt : null,
+        canAutoInterrupt: canAutoInterrupt(),
+        wsReadyState: ws ? ws.readyState : null,
+        currentSttSession,
+    };
+}
+
+function sendInterrupt(reason, action = 'send') {
+    const debug = buildInterruptDebug(reason, action);
+    console.debug('[interrupt]', debug);
+    ws.send(JSON.stringify({
+        type: 'interrupt',
+        reason,
+        action,
+        debug,
+    }));
+}
+
+function logInterruptDebug(reason, action = 'send') {
+    console.debug('[interrupt]', buildInterruptDebug(reason, action));
 }
 
 function clearHistory() {

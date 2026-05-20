@@ -281,6 +281,22 @@ async def websocket_endpoint(ws: WebSocket):
                     await process_query(query)
 
             elif msg_type == "interrupt":
+                reason = msg.get("reason", "unknown")
+                action = msg.get("action", "")
+                debug = msg.get("debug") or {}
+                logger.info(
+                    "Interrupt received: reason=%s action=%s generation=%d stt_session=%s state=%s "
+                    "ai_responding=%s vad_frames=%s tts_elapsed_ms=%s can_auto=%s",
+                    reason,
+                    action,
+                    query_generation,
+                    debug.get("currentSttSession", active_stt_session_id),
+                    debug.get("sessionState"),
+                    debug.get("aiResponding"),
+                    debug.get("vadConsecutiveFrames"),
+                    debug.get("ttsPlaybackElapsedMs"),
+                    debug.get("canAutoInterrupt"),
+                )
                 query_generation += 1
                 pipeline.interrupt()
                 audio_buffer.clear()
