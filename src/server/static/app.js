@@ -4,6 +4,7 @@ let audioContext = null;
 let analyserNode = null;
 let analyserDataArray = null;
 let analyserSilencer = null;
+let recorderSinkGain = null;
 let scriptProcessor = null;
 let audioWorkletNode = null;
 let isRecording = false;
@@ -290,6 +291,9 @@ async function startRecording() {
         source.connect(analyserNode);
         analyserNode.connect(analyserSilencer);
         analyserSilencer.connect(audioContext.destination);
+        recorderSinkGain = audioContext.createGain();
+        recorderSinkGain.gain.value = 0;
+        recorderSinkGain.connect(audioContext.destination);
 
         // 尝试使用 AudioWorklet（现代方案）
         if (useAudioWorklet && audioContext.audioWorklet) {
@@ -306,7 +310,7 @@ async function startRecording() {
                 };
 
                 source.connect(audioWorkletNode);
-                audioWorkletNode.connect(audioContext.destination);
+                audioWorkletNode.connect(recorderSinkGain);
                 console.log('Using AudioWorklet for recording');
             } catch (workletErr) {
                 console.warn('AudioWorklet failed, falling back to ScriptProcessor:', workletErr);
@@ -346,7 +350,12 @@ function setupScriptProcessor(source) {
         }
     };
     source.connect(scriptProcessor);
-    scriptProcessor.connect(audioContext.destination);
+    if (!recorderSinkGain) {
+        recorderSinkGain = audioContext.createGain();
+        recorderSinkGain.gain.value = 0;
+        recorderSinkGain.connect(audioContext.destination);
+    }
+    scriptProcessor.connect(recorderSinkGain);
     console.log('Using ScriptProcessor for recording (legacy)');
 }
 
@@ -391,6 +400,10 @@ function stopRecording(discard = false) {
         audioWorkletNode.port.onmessage = null;
         audioWorkletNode.disconnect();
         audioWorkletNode = null;
+    }
+    if (recorderSinkGain) {
+        recorderSinkGain.disconnect();
+        recorderSinkGain = null;
     }
 
     // 关闭 AudioContext
@@ -937,6 +950,10 @@ function interrupt(reason = 'manual') {
     // 如果 AI 未在回复，不执行打断
     if (!aiResponding) {
         logInterruptDebug(reason, 'ignored_not_responding');
+        return;
+    }
+    if (reason === 'vad' && !canAutoInterrupt()) {
+        logInterruptDebug(reason, 'ignored_auto_guard');
         return;
     }
 

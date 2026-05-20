@@ -128,10 +128,11 @@ class StreamingSynthesizer:
 
     def finish(self) -> None:
         """通知文本输入完毕，等待合成结束"""
-        if self._synthesizer:
-            self._synthesizer.streaming_complete()
+        synthesizer = self._synthesizer
+        if synthesizer:
+            synthesizer.streaming_complete()
             logger.debug(
                 "TTS finished, request_id=%s, first_pkg_delay=%sms",
-                self._synthesizer.get_last_request_id(),
-                self._synthesizer.get_first_package_delay(),
+                synthesizer.get_last_request_id(),
+                synthesizer.get_first_package_delay(),
             )

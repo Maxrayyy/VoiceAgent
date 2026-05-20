@@ -284,11 +284,16 @@ async def websocket_endpoint(ws: WebSocket):
                 reason = msg.get("reason", "unknown")
                 action = msg.get("action", "")
                 debug = msg.get("debug") or {}
+                is_blocked_auto_interrupt = (
+                    reason == "vad"
+                    and debug
+                    and debug.get("canAutoInterrupt") is False
+                )
                 logger.info(
                     "Interrupt received: reason=%s action=%s generation=%d stt_session=%s state=%s "
                     "ai_responding=%s vad_frames=%s tts_elapsed_ms=%s can_auto=%s",
                     reason,
-                    action,
+                    "ignored_auto_guard" if is_blocked_auto_interrupt else action,
                     query_generation,
                     debug.get("currentSttSession", active_stt_session_id),
                     debug.get("sessionState"),
@@ -297,6 +302,8 @@ async def websocket_endpoint(ws: WebSocket):
                     debug.get("ttsPlaybackElapsedMs"),
                     debug.get("canAutoInterrupt"),
                 )
+                if is_blocked_auto_interrupt:
+                    continue
                 query_generation += 1
                 pipeline.interrupt()
                 audio_buffer.clear()
