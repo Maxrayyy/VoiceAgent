@@ -305,7 +305,6 @@ body {
 .bubble-row.user .bubble-card {
     background: #dff1ff;
     border: 1px solid #b8dcf6;
-    border-left: 3px solid #4aa6df;
     color: #11324a;
 }
 
@@ -313,7 +312,6 @@ body {
 .bubble-row.assistant .bubble-card {
     background: #ffffff;
     border: 1px solid #dce7f2;
-    border-left: 3px solid #1286c8;
     color: #172033;
 }
 
