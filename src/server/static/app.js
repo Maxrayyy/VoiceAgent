@@ -12,6 +12,7 @@ let pendingStartCommand = false;
 let useAudioWorklet = true;
 
 let micVolumeLevel = 0.02;
+let micAverageLevel = 0;
 let ttsVolumeLevel = 0.02;
 let volumeCanvas;
 let volumeCtx;
@@ -63,6 +64,19 @@ let ttsPlaybackStartedAt = 0;        // 本轮 TTS 实际开始播放时间
 // STT 会话管理，防止过期的识别结果触发查询
 let sttSessionId = 0;
 let currentSttSession = 0;
+
+// --- 持续监听 STT 本地门控配置 ---
+const STT_START_THRESHOLD = 9.0;      // 麦克风平均振幅连续超过该值才启动 STT
+const STT_START_FRAMES = 3;           // 连续超阈值的音频块数量
+const STT_END_THRESHOLD = 5.0;        // 低于该值进入静音计时
+const STT_END_SILENCE_MS = 1200;      // 静音超过该时长后结束本轮 STT
+const STT_PREROLL_CHUNKS = 6;         // 启动 STT 时补发少量开头音频，避免截断首字
+
+let sttVoiceActive = false;
+let sttReadyForAudio = false;
+let sttVoiceFrames = 0;
+let sttLastVoiceAt = 0;
+let sttAudioQueue = [];
 
 window.addEventListener('DOMContentLoaded', () => {
     toastStack = document.getElementById('toastStack');
@@ -254,7 +268,7 @@ function connectWS() {
     ws = new WebSocket(`${protocol}//${location.host}/ws`);
     ws.onopen = () => {
         console.log('WebSocket connected');
-        if (pendingStartCommand || isRecording) {
+        if (pendingStartCommand || (isRecording && (recordMode === 'push-to-talk' || sttVoiceActive))) {
             requestStartRecording();
         }
     };
@@ -303,10 +317,7 @@ async function startRecording() {
 
                 audioWorkletNode.port.onmessage = (e) => {
                     if (!isRecording) return;
-                    const b64 = arrayBufferToBase64(e.data);
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ type: 'audio', data: b64 }));
-                    }
+                    handleAudioFrame(e.data);
                 };
 
                 source.connect(audioWorkletNode);
@@ -324,12 +335,15 @@ async function startRecording() {
 
         isRecording = true;
         sessionState = SessionState.LISTENING;
-        // 生成新的 STT 会话 ID
-        sttSessionId++;
-        currentSttSession = sttSessionId;
-        status.textContent = recordMode === 'continuous' ? '监听中…' : '录音中…';
+        resetSttVoiceGate();
+        status.textContent = recordMode === 'continuous' ? '等待说话…' : '录音中…';
         monitorMicLevel();
-        requestStartRecording();
+        if (recordMode === 'push-to-talk') {
+            sttSessionId++;
+            currentSttSession = sttSessionId;
+            sttVoiceActive = true;
+            requestStartRecording();
+        }
     } catch (err) {
         console.error('microphone error', err);
         status.textContent = '无法监听';
@@ -344,10 +358,7 @@ function setupScriptProcessor(source) {
         if (!isRecording) return;
         const float32 = e.inputBuffer.getChannelData(0);
         const pcm16 = float32ToPCM16(float32);
-        const b64 = arrayBufferToBase64(pcm16.buffer);
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'audio', data: b64 }));
-        }
+        handleAudioFrame(pcm16.buffer);
     };
     source.connect(scriptProcessor);
     if (!recorderSinkGain) {
@@ -357,6 +368,91 @@ function setupScriptProcessor(source) {
     }
     scriptProcessor.connect(recorderSinkGain);
     console.log('Using ScriptProcessor for recording (legacy)');
+}
+
+function handleAudioFrame(buffer) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    if (recordMode === 'push-to-talk') {
+        sendAudioBuffer(buffer);
+        return;
+    }
+
+    updateContinuousSttGate(buffer);
+}
+
+function updateContinuousSttGate(buffer) {
+    const now = Date.now();
+    sttAudioQueue.push(buffer);
+    while (sttAudioQueue.length > STT_PREROLL_CHUNKS) {
+        sttAudioQueue.shift();
+    }
+
+    if (!sttVoiceActive) {
+        if (micAverageLevel >= STT_START_THRESHOLD && !aiResponding) {
+            sttVoiceFrames++;
+            if (sttVoiceFrames >= STT_START_FRAMES) {
+                sttVoiceActive = true;
+                sttReadyForAudio = false;
+                sttLastVoiceAt = now;
+                sttSessionId++;
+                currentSttSession = sttSessionId;
+                document.getElementById('recordStatus').textContent = '识别中…';
+                requestStartRecording();
+            }
+        } else {
+            sttVoiceFrames = 0;
+        }
+        return;
+    }
+
+    if (micAverageLevel >= STT_END_THRESHOLD) {
+        sttLastVoiceAt = now;
+    }
+
+    if (sttReadyForAudio) {
+        sendAudioBuffer(buffer);
+    }
+
+    if (sttLastVoiceAt && now - sttLastVoiceAt >= STT_END_SILENCE_MS) {
+        finishContinuousStt(false);
+    }
+}
+
+function flushQueuedSttAudio() {
+    if (!sttReadyForAudio || !ws || ws.readyState !== WebSocket.OPEN) return;
+    const queued = sttAudioQueue;
+    sttAudioQueue = [];
+    queued.forEach(sendAudioBuffer);
+}
+
+function sendAudioBuffer(buffer) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const b64 = arrayBufferToBase64(buffer);
+    ws.send(JSON.stringify({ type: 'audio', data: b64 }));
+}
+
+function finishContinuousStt(discard = false) {
+    if (!sttVoiceActive) return;
+    sttVoiceActive = false;
+    sttReadyForAudio = false;
+    sttVoiceFrames = 0;
+    sttLastVoiceAt = 0;
+    sttAudioQueue = [];
+    if (recordMode === 'continuous') {
+        document.getElementById('recordStatus').textContent = '等待说话…';
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'stop_recording', discard: !!discard }));
+    }
+}
+
+function resetSttVoiceGate() {
+    sttVoiceActive = false;
+    sttReadyForAudio = false;
+    sttVoiceFrames = 0;
+    sttLastVoiceAt = 0;
+    sttAudioQueue = [];
 }
 
 function monitorMicLevel() {
@@ -371,6 +467,7 @@ function monitorMicLevel() {
             sum += Math.abs(analyserDataArray[i] - 128);
         }
         const avg = sum / analyserDataArray.length;
+        micAverageLevel = avg;
         micVolumeLevel = Math.min(0.9, Math.max(avg / 60, 0.02));
         // 非回答状态下更新噪声基线
         if (sessionState !== SessionState.RESPONDING) {
@@ -386,6 +483,7 @@ function monitorMicLevel() {
 function stopRecording(discard = false) {
     if (!isRecording) return;
     stopVadMonitoring();
+    resetSttVoiceGate();
     isRecording = false;
     pendingStartCommand = false;
 
@@ -429,6 +527,7 @@ function stopRecording(discard = false) {
 
 function requestStartRecording() {
     if (ws && ws.readyState === WebSocket.OPEN) {
+        sttReadyForAudio = false;
         ws.send(JSON.stringify({ type: 'start_recording', session_id: currentSttSession }));
         pendingStartCommand = false;
     } else {
@@ -440,14 +539,22 @@ function handleMessage(msg) {
     switch (msg.type) {
         case 'recording_started':
             if (recordMode === 'continuous') {
-                document.getElementById('recordStatus').textContent = '监听中…';
+                sttReadyForAudio = false;
+                document.getElementById('recordStatus').textContent = sttVoiceActive ? '识别中…' : '等待说话…';
+                setTimeout(() => {
+                    if (recordMode !== 'continuous' || !sttVoiceActive) return;
+                    sttReadyForAudio = true;
+                    flushQueuedSttAudio();
+                }, 180);
             } else {
+                sttReadyForAudio = true;
                 document.getElementById('recordStatus').textContent = '录音中…';
             }
             break;
         case 'recording_stopped':
+            sttReadyForAudio = false;
             if (recordMode === 'continuous') {
-                document.getElementById('recordStatus').textContent = '已暂停';
+                document.getElementById('recordStatus').textContent = isRecording ? '等待说话…' : '已暂停';
             } else {
                 document.getElementById('recordStatus').textContent = '等待说话…';
             }
@@ -479,11 +586,9 @@ function handleMessage(msg) {
             }
             sessionState = SessionState.PROCESSING;
             finalizeUserLive(msg.text);
-            // 连续模式下：当前 STT 会话已完成识别，重启新 STT 会话以准备下次对话
+            // 连续模式下：当前 STT 会话已完成识别，回到本地门控等待下一次明确说话
             if (recordMode === 'continuous' && isRecording) {
-                sttSessionId++;
-                currentSttSession = sttSessionId;
-                requestStartRecording();
+                finishContinuousStt(true);
             }
             break;
         case 'llm_chunk':
