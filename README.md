@@ -10,7 +10,7 @@ VoiceAgent 是一套面向飞机维修场景的知识增强语音问答系统。
 - 结合向量检索、BM25 和重排序的混合 RAG 检索
 - LLM 文本流与 TTS 音频流并行输出
 - 支持打断回复、清除上下文、持续监听和按住说话
-- 提供知识库构建、论文图生成、论文文档生成等辅助脚本
+- 提供知识库构建、RAG 评估、端到端测试等辅助脚本
 
 ## 架构概览
 
@@ -37,20 +37,41 @@ VoiceAgent 是一套面向飞机维修场景的知识增强语音问答系统。
 ├── scripts/
 │   ├── pdf_to_txt.py          # PDF 转文本
 │   ├── ingest_docs.py         # 构建 RAG 索引
-│   ├── generate_thesis_figures.py # 生成论文图
-│   └── generate_thesis_docx.py    # 生成论文 docx
+│   ├── evaluate_rag.py        # RAG 评估
+│   ├── generate_eval_dataset.py # 生成评估数据集
+│   ├── test_query_rewrite_effect.py # 测试查询改写效果
+│   ├── e2e_test_client.py     # 端到端测试客户端
+│   └── generate_test_audio.py # 生成测试音频
 ├── data/
 │   ├── knowledge/             # 原始维修手册 PDF
 │   ├── txt/                   # OCR/抽取后的文本
 │   └── index/                 # FAISS + BM25 索引
 ├── docs/                      # 技术文档与调研资料
-├── thesis/                    # 毕业论文 Markdown、图片和 docx
 └── requirements.txt
 ```
 
 ## 快速开始
 
-### 1. 创建虚拟环境并安装依赖
+### 1. 申请 API Key
+
+运行前需要准备阿里云 NLS 和 DashScope 的访问密钥。
+
+| 密钥 | 用途 | 填入 `.env` 的字段 |
+| --- | --- | --- |
+| AccessKey ID | NLS 语音识别鉴权 | `NLS_ACCESS_KEY_ID` |
+| AccessKey Secret | NLS 语音识别鉴权 | `NLS_ACCESS_KEY_SECRET` |
+| NLS Appkey | NLS 项目标识 | `NLS_APPKEY` |
+| DashScope API Key | LLM、TTS、Embedding | `DASHSCOPE_API_KEY` |
+
+申请入口：
+
+- 阿里云 AccessKey：`https://ram.console.aliyun.com/manage/ak`
+- NLS Appkey：`https://nls-portal.console.aliyun.com/applist`
+- DashScope API Key：`https://bailian.console.aliyun.com/#/api-key`
+
+建议使用 RAM 子账号，并为 NLS 授予最小必要权限。
+
+### 2. 创建虚拟环境并安装依赖
 
 ```bash
 python -m venv venv
@@ -58,80 +79,64 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-如果系统缺少 PDF 渲染相关依赖，还需要安装：
+### 3. 安装阿里云 NLS SDK
+
+NLS SDK 需要单独从 GitHub 安装：
 
 ```bash
-sudo apt-get install poppler-utils graphviz
+git clone https://github.com/aliyun/alibabacloud-nls-python-sdk.git
+cd alibabacloud-nls-python-sdk
+pip install -r requirements.txt
+pip install .
+cd ..
+pip install aliyunsdkcore
 ```
 
-### 2. 配置环境变量
+如果需要运行 PDF 转文本脚本，还需要系统安装 `poppler-utils`，并准备 PaddleOCR/PaddleX 所需模型。
 
-复制示例配置文件：
+### 4. 配置环境变量
 
 ```bash
 cp .env.example .env
 ```
 
-然后编辑 `.env`，至少补齐下面这些配置：
+编辑 `.env`，填入第 1 步申请到的密钥。模型和服务地址可以保留默认值，按需覆盖。
 
-| 变量 | 说明 |
-| --- | --- |
-| `NLS_APPKEY` | 阿里云 NLS 语音识别 AppKey |
-| `NLS_ACCESS_KEY_ID` | 阿里云 AccessKey ID |
-| `NLS_ACCESS_KEY_SECRET` | 阿里云 AccessKey Secret |
-| `DASHSCOPE_API_KEY` | DashScope API Key，用于 LLM、TTS 和 Embedding |
+### 5. 导入知识库文档
 
-可选配置包括：
-
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `NLS_URL` | `wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1` | NLS WebSocket 地址 |
-| `DASHSCOPE_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | DashScope 兼容模式地址 |
-| `DASHSCOPE_WS_URL` | `wss://dashscope.aliyuncs.com/api-ws/v1/inference` | DashScope WebSocket 地址 |
-| `LLM_MODEL` | `qwen-plus` | 生成模型 |
-| `TTS_MODEL` | `cosyvoice-v3-flash` | 语音合成模型 |
-| `TTS_VOICE` | `longxiaochun_v3` | 合成音色 |
-| `EMBEDDING_MODEL` | `text-embedding-v3` | 向量模型 |
-| `SERVER_HOST` | `127.0.0.1` | 服务监听地址 |
-| `SERVER_PORT` | `8000` | 服务监听端口 |
-| `NLS_MAX_SENTENCE_SILENCE` | `1500` | STT 句子静默阈值，单位毫秒 |
-
-### 3. 构建知识库索引
-
-如果已经有整理好的文本文件，可以直接跳过 PDF 转文本这一步。
-
-#### 方式一：先把 PDF 转成文本
+将飞机维修相关文档放入 `data/knowledge/`，支持 PDF、Word、TXT 等格式：
 
 ```bash
-python scripts/pdf_to_txt.py --pdf data/knowledge/your_manual.pdf --first-page 9 --last-page 69
+python scripts/ingest_docs.py data/knowledge/
 ```
 
-默认会把结果写到 `data/txt/` 下的文本文件中。
-
-#### 方式二：构建 RAG 索引
+也可以导入单个文件：
 
 ```bash
-python scripts/ingest_docs.py data/txt/ --index-dir data/index/ --rebuild
+python scripts/ingest_docs.py data/knowledge/维修手册.pdf
 ```
 
-该命令会：
+索引默认保存在 `data/index/`，包含 FAISS 向量索引和 BM25 稀疏索引。
 
-- 读取 `data/txt/` 下的文档
-- 切分文本块
-- 生成向量并写入 FAISS
-- 同步构建 BM25 索引
-
-如果你要直接导入其他目录，也可以把路径换成自己的文档目录。
-
-### 4. 启动服务
+如果要重建索引，可以加上 `--rebuild`：
 
 ```bash
-python -m src.server.app
+python scripts/ingest_docs.py data/knowledge/ --rebuild
 ```
 
-默认会在 `http://127.0.0.1:8000` 启动 Web 服务。
+### 6. 启动服务
 
-打开浏览器后，前端会通过 WebSocket `ws://127.0.0.1:8000/ws` 与后端通信。
+```bash
+uvicorn src.server.app:app --host 0.0.0.0 --port 8000
+```
+
+开发时如需热重载，可以使用：
+
+```bash
+uvicorn src.server.app:app --reload --host 0.0.0.0 --port 8000
+```
+
+浏览器访问 `http://localhost:8000`。前端会通过 WebSocket `ws://localhost:8000/ws` 与后端通信。
 
 ## 使用方式
 
@@ -196,13 +201,25 @@ python scripts/pdf_to_txt.py --help
 python scripts/ingest_docs.py --help
 ```
 
-### `scripts/generate_thesis_figures.py`
+### `scripts/evaluate_rag.py`
 
-用于生成毕业论文中的架构图和流程图。
+用于评估 RAG 检索效果。
 
-### `scripts/generate_thesis_docx.py`
+### `scripts/generate_eval_dataset.py`
 
-用于将 `thesis/md/` 下的论文内容生成 Word 文档。
+用于生成评估数据集。
+
+### `scripts/e2e_test_client.py`
+
+用于端到端连接服务并测试 WebSocket 流程。
+
+### `scripts/generate_test_audio.py`
+
+用于生成测试音频。
+
+### `scripts/test_query_rewrite_effect.py`
+
+用于测试查询改写对检索效果的影响。
 
 ## 开发说明
 
